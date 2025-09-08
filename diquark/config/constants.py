@@ -84,7 +84,7 @@ BACKGROUNDS_DIR = Path('/data/iduminic/diquark-analysis/full-hadro/bkg/')
 SIGNAL_DIR = Path('/data/iduminic/diquark-analysis/full-hadro/sgn/')
 
 BACKGROUNDS_6JETS_DIR = BACKGROUNDS_DIR / '6jets/136/100k'
-SIGNAL_ATLAS_136_DIR = SIGNAL_DIR / 'chi-chi/wb-wb/136/yuu-020/m_chi-1500/'
+SIGNAL_ATLAS_136_DIR = SIGNAL_DIR / 'chi-chi/wb-wb/136/yuu-040/m_chi-1500/'
 
 ## m_{S_{uu}} = 6.5 TeV
 ATLAS_136_6500_BKG_DIR = BACKGROUNDS_6JETS_DIR / '136_6500'
@@ -217,7 +217,7 @@ CROSS_SECTION_ATLAS_136_6500 = {
     'BKG:ff_gmZgmZ_bkg': 9.065E-05,
     'BKG:gg_ttbar_bkg_hadronic': 5.051E-04,
     'BKG:qq_ttbar_bkg_hadronic': 4.646E-04,
-    'SIG:Suu': 1.589E-02
+    'SIG:Suu': 7.122E-02
 }
 
 CROSS_SECTION_ATLAS_136_6750 = {
@@ -253,7 +253,7 @@ CROSS_SECTION_ATLAS_136_6750 = {
     'BKG:ff_gmZgmZ_bkg': 5.086E-05,
     'BKG:gg_ttbar_bkg_hadronic': 2.611E-04,
     'BKG:qq_ttbar_bkg_hadronic': 2.519E-04,
-    'SIG:Suu': 1.027E-02
+    'SIG:Suu': 4.609E-02
 }
 
 CROSS_SECTION_ATLAS_136_7000 = {
@@ -289,7 +289,7 @@ CROSS_SECTION_ATLAS_136_7000 = {
     'BKG:ff_gmZgmZ_bkg': 2.821E-05,
     'BKG:gg_ttbar_bkg_hadronic': 1.336E-04,
     'BKG:qq_ttbar_bkg_hadronic': 1.343E-04,
-    'SIG:Suu': 6.569E-03
+    'SIG:Suu': 2.943E-02
 }
 
 CROSS_SECTION_ATLAS_136_7250 = {
@@ -325,7 +325,7 @@ CROSS_SECTION_ATLAS_136_7250 = {
     'BKG:ff_gmZgmZ_bkg': 1.544E-05,
     'BKG:gg_ttbar_bkg_hadronic': 6.757E-05,
     'BKG:qq_ttbar_bkg_hadronic': 7.087E-05,
-    'SIG:Suu': 4.120E-03
+    'SIG:Suu': 1.848E-02
 }
 
 CROSS_SECTION_ATLAS_136_7500 = {
@@ -361,7 +361,7 @@ CROSS_SECTION_ATLAS_136_7500 = {
     'BKG:ff_gmZgmZ_bkg': 8.316E-06,
     'BKG:gg_ttbar_bkg_hadronic': 3.372E-05,
     'BKG:qq_ttbar_bkg_hadronic': 3.671E-05,
-    'SIG:Suu': 2.553E-03
+    'SIG:Suu': 1.146E-02
 }
 
 CROSS_SECTION_ATLAS_136_7750 = {
@@ -397,7 +397,7 @@ CROSS_SECTION_ATLAS_136_7750 = {
     'BKG:ff_gmZgmZ_bkg': 4.421E-06,
     'BKG:gg_ttbar_bkg_hadronic': 1.662E-05,
     'BKG:qq_ttbar_bkg_hadronic': 1.874E-05,
-    'SIG:Suu': 1.555E-03
+    'SIG:Suu': 6.996E-03
 }
 
 CROSS_SECTION_ATLAS_136_8000 = {
@@ -433,7 +433,7 @@ CROSS_SECTION_ATLAS_136_8000 = {
     'BKG:ff_gmZgmZ_bkg': 2.298E-06,
     'BKG:gg_ttbar_bkg_hadronic': 8.018E-06,
     'BKG:qq_ttbar_bkg_hadronic': 9.390E-06,
-    'SIG:Suu': 9.273E-04
+    'SIG:Suu': 4.179E-03
 }
 
 CROSS_SECTION_ATLAS_136_8250 = {
@@ -469,5 +469,5 @@ CROSS_SECTION_ATLAS_136_8250 = {
     'BKG:ff_gmZgmZ_bkg': 1.176E-06,
     'BKG:gg_ttbar_bkg_hadronic': 3.812E-06,
     'BKG:qq_ttbar_bkg_hadronic': 4.603E-06,
-    'SIG:Suu': 5.421E-04
+    'SIG:Suu': 2.448E-03
 }

@@ -56,7 +56,7 @@ visualization:
     - sig_bkg_metrics
 
 results:
-  directory: 'results/yuu-020/m_chi-1500/136_7000'
+  directory: 'results/yuu-040/m_chi-1500/136_7000'
   save_predictions: true
   save_feature_importances: true
 
