@@ -22,6 +22,16 @@ class ConfigManager:
                 return default
         return value
 
+    def get_required(self, key: str) -> Any:
+        keys = key.split('.')
+        value = self.config
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                raise Exception(f"key not found in config file '{self.config_path}': '{key}'")
+        return value
+
     def set(self, key: str, value: Any):
         keys = key.split('.')
         config = self.config

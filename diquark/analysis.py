@@ -1,6 +1,7 @@
-from tqdm.contrib.concurrent import thread_map
 import argparse
+from pathlib import Path
 import random
+from tqdm.contrib.concurrent import thread_map
 
 import numpy as np
 import pandas as pd
@@ -16,7 +17,6 @@ from diquark.models.random_forest import RandomForestModel
 from diquark.models.gradient_boosting import GradientBoostingModel
 from diquark.evaluation.metrics import calculate_metrics, calculate_signal_background_metrics, calculate_counts_for_score_cuts
 from diquark.evaluation.visualizations import plot_results
-from diquark.config import constants
 
 class Analysis:
     def __init__(self, config_path: str):
@@ -26,22 +26,53 @@ class Analysis:
                                    level=self.config.get('logging.level', 'INFO'))
         self.results_manager = ResultsManager(self.config.get('results.directory', 'results'))
 
+        config_files_dir = Path(__file__).parent / "config"
 
-        # Load path_dict and cross_sections from constants
-        self.path_dict = getattr(constants, self.config.get('data.path_dict'))  # Adjust as needed
-        self.cross_sections = getattr(constants, self.config.get('data.cross_section_dict'))  # Adjust as needed
+        # Load backgrounds config file
+        backgrounds_config_file = self.config.get_required('data.backgrounds_file')
+        backgrounds_config_file_path = config_files_dir / "Backgrounds" / backgrounds_config_file
+        backgrounds_config = ConfigManager(backgrounds_config_file_path)
+
+        # Sanity check for matching phase space cuts
+        assert self.config.get_required('data.mass_cut') == backgrounds_config.get_required('backgrounds.mass_cut')
+
+        backgrounds_directory = Path(backgrounds_config.get_required('backgrounds.base_directory'))
+        backgrounds_file_name_mapping = backgrounds_config.get_required('backgrounds.file_name_mapping')
+
+        files = set()
+        def find_root_file(filename: str) -> Path:
+            results = backgrounds_directory.glob(f"*{filename}*.root")
+            for path in results:
+                files.add(path)
+                return path
+            else:
+                raise Exception(f"Could not find background file with filename '{filename}'")
+
+        background_path_dict = {
+            f'BKG:{key}': find_root_file(filename)
+            for key, filename in backgrounds_file_name_mapping.items()
+        }
+        assert len(files) == len(backgrounds_file_name_mapping.keys())
+
+        # Load signal config file
+        signal_config_file = self.config.get_required('data.signal_file')
+        backgrounds_config_file_path = config_files_dir / "Signals" / signal_config_file
+        signal_config = ConfigManager(backgrounds_config_file_path)
+
+        signal_file = Path(signal_config.get('signal.file'))
+        path_dict = background_path_dict | { 'SIG:Suu': signal_file }
+
+        self.data_loader = DataLoader(path_dict,
+                                      index_start=self.config.get('data.index_start', 0),
+                                      index_stop=self.config.get('data.index_stop', None))
 
         self.use_cross_validation = self.config.get('cross_validation.enabled', False)
         self.n_folds = self.config.get('cross_validation.n_folds', 1)
 
-        self.data_loader = DataLoader(self.path_dict,
-                                      index_start=self.config.get('data.index_start', 0),
-                                      index_stop=self.config.get('data.index_stop', None))
-
         self.feature_extractor = FeatureExtractor(
-            n_jets=self.config.get('feature_extraction.n_jets', 6),
-            chi_mass=self.config.get('feature_extraction.chi_mass', 2000),
-            suu_mass=self.config.get('feature_extraction.suu_mass', 7500),
+            n_jets=self.config.get_required('feature_extraction.n_jets'),
+            chi_mass=signal_config.get_required('signal.chi_mass'),
+            suu_mass=signal_config.get_required('signal.suu_mass'),
         )
         self.preprocessor = Preprocessor(self.config.get('preprocessing', {}))
 
@@ -50,6 +81,19 @@ class Analysis:
             'random_forest': RandomForestModel(self.config.get('models.random_forest', {})) if self.config.get('models.random_forest', None) else None,
             'gradient_boosting': GradientBoostingModel(self.config.get('models.gradient_boosting', {})) if self.config.get('models.gradient_boosting', None) else None
         }
+
+        # Load cross-sections from config file
+        background_cross_sections = backgrounds_config.get_required('backgrounds.cross_sections')
+        signal_cross_section = signal_config.get_required('signal.cross_section')
+
+        self.cross_sections = {
+            f"BKG:{key}": cross_section
+            for key, cross_section in background_cross_sections.items()
+        } | {
+            "SIG:Suu": signal_cross_section
+        }
+        assert set(self.cross_sections.keys()) == set(path_dict.keys())
+
 
     def run(self):
         self.logger.info("Starting analysis...")
@@ -146,6 +190,8 @@ class Analysis:
             y_pred = model.predict(X_test)
 
             sample_weights = np.array([self.cross_sections[label] for label in df_test['Truth']])
+            # Ensure we don't have any `None`s
+            assert sample_weights.dtype == np.float64
 
             thresholds = self.config.get('evaluation.thresholds', [0.2, 0.5, 0.8, 0.90, 0.925, 0.95, 0.96, 0.97, 0.98, 0.99])
             use_real_event_percentiles = self.config.get('evaluation.use_real_event_percentiles', False)

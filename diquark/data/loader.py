@@ -5,8 +5,6 @@ import awkward as ak
 
 from tqdm.contrib.concurrent import thread_map
 
-from diquark.config.constants import DATA_KEYS
-
 class DataLoader:
 
     def __init__(self, path_dict: dict[str, str], index_start=0, index_stop=None):
@@ -45,7 +43,7 @@ class DataLoader:
         print(f"Fraction of events passing mass cut: {(masses >= mass).sum() / len(masses):.2f}")
         return arr[(masses > mass).flatten()]
 
-    def _load_dataset(self, key, mass_cut: float = None):
+    def _load_dataset(self, key: str, mass_cut: float = None):
         arr = self.read_jet_delphes(self.path_dict[key])
 
         if key.startswith("SIG") and mass_cut is not None:
@@ -54,13 +52,16 @@ class DataLoader:
         return key, arr
 
     def load_data(self, mass_cut: float = None) -> dict[str, ak.Array]:
-        """Load all datasets specified in DATA_KEYS."""
+        """Load all datasets specified in the path dictionary."""
+
+        keys = list(self.path_dict.keys())
 
         # Load the datasets in parallel
         load_dataset = functools.partial(self._load_dataset, mass_cut=mass_cut)
-        datasets = thread_map(load_dataset, DATA_KEYS, max_workers=64, desc="Loading data")
+        datasets = thread_map(load_dataset, keys, max_workers=64, desc="Loading data")
 
         self.datasets = dict(datasets)
+        assert len(self.datasets.keys()) == len(datasets), "Duplicate dataset key"
 
         return self.datasets
 
