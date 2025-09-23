@@ -1,0 +1,5 @@
+signal:
+  file: "/data/iduminic/diquark-analysis/full-hadro/sgn/chi-chi/zt-ht/jjt-wwt/136_8250_events.root"
+  cross_section: 4.164E-05
+  chi_mass: 2000
+  suu_mass: 8250
