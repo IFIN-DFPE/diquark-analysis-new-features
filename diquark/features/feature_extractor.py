@@ -1,6 +1,6 @@
-from math import comb
 import numpy as np
 import awkward as ak
+
 
 class FeatureExtractor:
     def __init__(self, n_jets: int, chi_mass: float, suu_mass: float):
@@ -47,7 +47,9 @@ class FeatureExtractor:
         filled = ak.fill_none(padded, 0.0)
         return filled.to_numpy()
 
-    def event_shape_eigenvalues(self, mask: np.ndarray, p_x: ak.Array, p_y: ak.Array, p_z: ak.Array):
+    def event_shape_eigenvalues(
+        self, mask: np.ndarray, p_x: ak.Array, p_y: ak.Array, p_z: ak.Array
+    ):
         p_x_np = self._pad_jet_array(p_x)
         p_y_np = self._pad_jet_array(p_y)
         p_z_np = self._pad_jet_array(p_z)
@@ -59,7 +61,9 @@ class FeatureExtractor:
         S = np.zeros((mask.sum(), 3, 3))
         for i in range(3):
             for j in range(3):
-                S[:, i, j] = np.vecdot(momenta[mask, :, i], momenta[mask, :, j]) / total[mask]
+                S[:, i, j] = (
+                    np.vecdot(momenta[mask, :, i], momenta[mask, :, j]) / total[mask]
+                )
 
         eigenvalues = np.linalg.eigvalsh(S)
         eigenvalues = np.sort(eigenvalues, axis=-1)
@@ -69,7 +73,9 @@ class FeatureExtractor:
     def jet_multiplicity(self, data: ak.Array) -> np.ndarray:
         return ak.to_numpy(data["Jet"])
 
-    def delta_r(self, etas: np.ndarray, phis: np.ndarray, pts: np.ndarray) -> np.ndarray:
+    def delta_r(
+        self, etas: np.ndarray, phis: np.ndarray, pts: np.ndarray
+    ) -> np.ndarray:
         n_events, _ = etas.shape
         n_pairs = self.n_jets * (self.n_jets - 1) // 2
 
@@ -96,28 +102,35 @@ class FeatureExtractor:
         dphi = np.where(dphi < -np.pi, dphi + 2 * np.pi, dphi)
         return dphi
 
-    def combined_invariant_mass(self, p_x: ak.Array, p_y: ak.Array, p_z: ak.Array, total_energy: np.ndarray) -> np.ndarray:
+    def combined_invariant_mass(
+        self, p_x: ak.Array, p_y: ak.Array, p_z: ak.Array, total_energy: np.ndarray
+    ) -> np.ndarray:
         p_x_total = ak.sum(p_x, axis=-1).to_numpy()
         p_y_total = ak.sum(p_y, axis=-1).to_numpy()
         p_z_total = ak.sum(p_z, axis=-1).to_numpy()
 
-        total_mass_squared = total_energy**2 - p_x_total**2 - p_y_total**2 - p_z_total**2
+        total_mass_squared = (
+            # |sum energies|^2 - ||sum momentum vectors||^2
+            total_energy**2 - p_x_total**2 - p_y_total**2 - p_z_total**2
+        )
 
         mass = np.sqrt(
             total_mass_squared,
             out=np.zeros_like(total_energy, dtype=np.float64),
-            where=total_mass_squared >= 0
+            where=total_mass_squared >= 0,
         )
         return np.nan_to_num(mass)
 
-    def n_jet_invariant_mass(self, p_x: ak.Array, p_y: ak.Array, p_z: ak.Array, E: ak.Array, k: int) -> np.ndarray:
+    def n_jet_invariant_mass(
+        self, p_x: ak.Array, p_y: ak.Array, p_z: ak.Array, E: ak.Array, k: int
+    ) -> np.ndarray:
         combination_indices = ak.unzip(ak.argcombinations(E, n=k))
 
         raw_masses = np.sqrt(
-            sum(E[combination_indices[i]] for i in range(k)) ** 2 -
-            sum(p_x[combination_indices[i]] for i in range(k)) ** 2 -
-            sum(p_y[combination_indices[i]] for i in range(k)) ** 2 -
-            sum(p_z[combination_indices[i]] for i in range(k)) ** 2
+            sum(E[combination_indices[i]] for i in range(k)) ** 2
+            - sum(p_x[combination_indices[i]] for i in range(k)) ** 2
+            - sum(p_y[combination_indices[i]] for i in range(k)) ** 2
+            - sum(p_z[combination_indices[i]] for i in range(k)) ** 2
         )
 
         return np.nan_to_num(raw_masses)
@@ -126,18 +139,26 @@ class FeatureExtractor:
         combination_indices = ak.unzip(ak.argcombinations(p_x, n=k))
 
         raw_vector_sum_pts = np.sqrt(
-            sum(p_x[combination_indices[i]] for i in range(k)) ** 2 +
-            sum(p_y[combination_indices[i]] for i in range(k)) ** 2
+            sum(p_x[combination_indices[i]] for i in range(k)) ** 2
+            + sum(p_y[combination_indices[i]] for i in range(k)) ** 2
         )
 
         return np.nan_to_num(raw_vector_sum_pts)
 
     def flatten_feature(self, name: str, data: ak.Array) -> dict:
         return {
-            f"{name}_min": ak.min(data, axis=-1, mask_identity=True).to_numpy().filled(0.0),
-            f"{name}_mean": ak.mean(data, axis=-1, mask_identity=True).to_numpy().filled(0.0),
-            f"{name}_stddev": ak.std(data, axis=-1, mask_identity=True).to_numpy().filled(0.0),
-            f"{name}_max": ak.max(data, axis=-1, mask_identity=True).to_numpy().filled(0.0),
+            f"{name}_min": ak.min(data, axis=-1, mask_identity=True)
+            .to_numpy()
+            .filled(0.0),
+            f"{name}_mean": ak.mean(data, axis=-1, mask_identity=True)
+            .to_numpy()
+            .filled(0.0),
+            f"{name}_stddev": ak.std(data, axis=-1, mask_identity=True)
+            .to_numpy()
+            .filled(0.0),
+            f"{name}_max": ak.max(data, axis=-1, mask_identity=True)
+            .to_numpy()
+            .filled(0.0),
         }
 
     def compute_all(self, data: ak.Array) -> dict[str, np.ndarray]:
@@ -157,7 +178,9 @@ class FeatureExtractor:
         features |= self.flatten_feature("eta", eta)
         features |= self.flatten_feature("phi", phi)
 
-        delta_r = self.delta_r(self._pad_jet_array(eta), self._pad_jet_array(phi), self._pad_jet_array(p_T))
+        delta_r = self.delta_r(
+            self._pad_jet_array(eta), self._pad_jet_array(phi), self._pad_jet_array(p_T)
+        )
         features |= self.flatten_feature("delta_r", delta_r)
 
         # Compute components in Cartesian coordinates
@@ -174,8 +197,8 @@ class FeatureExtractor:
         sphericity = np.zeros_like(num_jets, dtype=np.float64)
         aplanarity = np.zeros_like(num_jets, dtype=np.float64)
 
-        sphericity[non_zero_jets_mask] = 3/2 * (lambda_2 + lambda_3)
-        aplanarity[non_zero_jets_mask] = 3/2 * lambda_3
+        sphericity[non_zero_jets_mask] = 3 / 2 * (lambda_2 + lambda_3)
+        aplanarity[non_zero_jets_mask] = 3 / 2 * lambda_3
 
         features["sphericity"] = sphericity
         features["aplanarity"] = aplanarity
@@ -187,7 +210,8 @@ class FeatureExtractor:
         total_energy = ak.sum(energy, axis=-1).to_numpy()
         total_p_T = ak.sum(p_T, axis=-1).to_numpy()
         centrality = np.divide(
-            total_p_T, total_energy,
+            total_p_T,
+            total_energy,
             out=np.zeros_like(total_energy, dtype=np.float64),
             where=total_energy > 0,
         )
@@ -197,7 +221,9 @@ class FeatureExtractor:
         features["total_energy"] = total_energy
         features["total_p_T"] = total_p_T
 
-        combined_invariant_mass = self.combined_invariant_mass(p_x, p_y, p_z, total_energy)
+        combined_invariant_mass = self.combined_invariant_mass(
+            p_x, p_y, p_z, total_energy
+        )
         features["combined_invariant_mass"] = combined_invariant_mass
 
         m2j = self.n_jet_invariant_mass(p_x, p_y, p_z, energy, k=2)
@@ -217,14 +243,16 @@ class FeatureExtractor:
         features |= self.flatten_feature("vector_sum_p_T_6j", vector_sum_p_T_6j)
 
         # Compute combined features
-        features["n_jet_pairs_near_w_mass"] = ak.sum((m2j >= 60) & (m2j <= 100), axis=-1)
+        features["n_jet_pairs_near_w_mass"] = ak.sum(
+            (m2j >= 60) & (m2j <= 100), axis=-1
+        )
 
         # Compute \chi^2 score with known-mass particles
         m_W = 80.3692
         sigma_W = 20
 
         m_chi = self.chi_mass
-        sigma_chi = 2/100 * m_chi
+        sigma_chi = 2 / 100 * m_chi
 
         m_S = self.suu_mass
         sigma_S = 100
@@ -238,4 +266,3 @@ class FeatureExtractor:
         features |= self.flatten_feature("chi2_third_component", chi2_third_component)
 
         return features
-
