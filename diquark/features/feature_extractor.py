@@ -40,6 +40,7 @@ class FeatureExtractor:
             *self._flattened_feature_names("chi2_first_component"),
             *self._flattened_feature_names("chi2_second_component"),
             *self._flattened_feature_names("chi2_third_component"),
+            "event_weight",
         ]
 
     def _pad_jet_array(self, array: ak.Array):
@@ -264,5 +265,7 @@ class FeatureExtractor:
         features |= self.flatten_feature("chi2_first_component", chi2_first_component)
         features |= self.flatten_feature("chi2_second_component", chi2_second_component)
         features |= self.flatten_feature("chi2_third_component", chi2_third_component)
+
+        features["event_weight"] = ak.to_numpy(data["Event/Event.Weight"]).reshape(-1)
 
         return features

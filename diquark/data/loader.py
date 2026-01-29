@@ -15,6 +15,7 @@ class DataLoader:
             "Particle/Particle.PID",
             "Particle/Particle.Status",
             "Particle/Particle.Mass",
+            "Event/Event.Weight",
         ]
         self.path_dict = path_dict
         self.index_start = index_start

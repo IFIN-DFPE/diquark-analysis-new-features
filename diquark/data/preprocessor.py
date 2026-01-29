@@ -38,45 +38,90 @@ class Preprocessor:
         """Scales the features using the specified scaler."""
         return self.scaler.fit_transform(X)
 
-    def split_data(self, df: pd.DataFrame, feature_cols: List[str]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame, pd.DataFrame]:
+    def split_data(
+        self, df: pd.DataFrame, feature_cols: List[str]
+    ) -> Tuple[
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        np.ndarray,
+        pd.DataFrame,
+        pd.DataFrame,
+    ]:
         """Splits the data into training and test sets."""
         X = df[feature_cols].values
-        y = df['target'].values
+        y = df["target"].values
+        weights = df["event_weight"]
 
-        X_train, X_test, y_train, y_test, df_train, df_test = train_test_split(
-            X, y, df, test_size=self.test_size, stratify=y, random_state=self.random_state
+        (
+            X_train,
+            X_test,
+            y_train,
+            y_test,
+            weights_train,
+            weights_test,
+            df_train,
+            df_test,
+        ) = train_test_split(
+            X,
+            y,
+            weights,
+            df,
+            test_size=self.test_size,
+            stratify=y,
+            random_state=self.random_state,
         )
 
         if self.oversample_signal:
             df_train = self._oversample_signal(df_train)
             X_train = df_train[feature_cols].values
-            y_train = df_train['target'].values
+            y_train = df_train["target"].values
+            weights_train = df_train["event_weight"].values
 
         X_train_scaled = self.scale_features(X_train)
         X_test_scaled = self.scaler.transform(X_test)
 
-        return X_train_scaled, X_test_scaled, y_train, y_test, df_train, df_test
+        return (
+            X_train_scaled,
+            X_test_scaled,
+            y_train,
+            y_test,
+            weights_train,
+            weights_test,
+            df_train,
+            df_test,
+        )
 
     def _oversample_signal(self, df: pd.DataFrame) -> pd.DataFrame:
         """Oversamples the signal class to match the number of background instances."""
-        df_sig = df[df['target'] == 1]
-        df_bkg = df[df['target'] == 0]
+        df_sig = df[df["target"] == 1]
+        df_bkg = df[df["target"] == 0]
 
-        df_sig_oversampled = df_sig.sample(n=len(df_bkg), replace=True, random_state=self.random_state)
+        df_sig_oversampled = df_sig.sample(
+            n=len(df_bkg), replace=True, random_state=self.random_state
+        )
         df_oversampled = pd.concat([df_sig_oversampled, df_bkg])
 
         return df_oversampled.sample(frac=1, random_state=self.random_state)  # Shuffle
 
-    def prepare_data(self, features: Dict[str, Dict[str, np.ndarray]]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame, pd.DataFrame]:
+    def prepare_data(
+        self, features: Dict[str, Dict[str, np.ndarray]]
+    ) -> Tuple[
+        np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame, pd.DataFrame
+    ]:
         """Prepares the data for model training."""
         df = self.create_dataframe(features)
-        feature_cols = [col for col in df.columns if col not in ['Truth', 'target']]
+        feature_cols = [
+            col for col in df.columns if col not in ["Truth", "target", "event_weight"]
+        ]
         return self.split_data(df, feature_cols)
 
     def prepare_fold_data(self, X_train, X_test, y_train, y_test, df_train, df_test):
         if self.oversample_signal:
             df_train = self._oversample_signal(df_train)
-            X_train = df_train.drop(["target", "Truth"], axis=1).values
+            X_train = df_train.drop(["target", "Truth", "event_weight"], axis=1).values
             y_train = df_train["target"].values
 
         X_train_scaled = self.scale_features(X_train)

@@ -122,18 +122,6 @@ class Analysis:
             else None,
         }
 
-        # Load cross-sections from config file
-        background_cross_sections = backgrounds_config.get_required(
-            "backgrounds.cross_sections"
-        )
-        signal_cross_section = signal_config.get_required("signal.cross_section")
-
-        self.cross_sections = {
-            f"BKG:{key}": cross_section
-            for key, cross_section in background_cross_sections.items()
-        } | {"SIG:Suu": signal_cross_section}
-        assert set(self.cross_sections.keys()) == set(path_dict.keys())
-
     def run(self):
         self.logger.info("Starting analysis...")
 
@@ -152,13 +140,20 @@ class Analysis:
 
     def run_single_fold(self, features):
         # Preprocess data
-        X_train, X_test, y_train, y_test, df_train, df_test = self.preprocess_data(
-            features
-        )
+        (
+            X_train,
+            X_test,
+            y_train,
+            y_test,
+            _weights_train,
+            weights_test,
+            _df_train,
+            df_test,
+        ) = self.preprocess_data(features)
 
         # Train and evaluate models
         results = self.train_and_evaluate_models(
-            X_train, X_test, y_train, y_test, df_test
+            X_train, X_test, y_train, y_test, weights_test, df_test
         )
 
         # Visualize results
@@ -169,8 +164,9 @@ class Analysis:
 
     def run_cross_validation(self, features):
         df = self.preprocessor.create_dataframe(features)
-        X = df.drop(["target", "Truth"], axis=1)
+        X = df.drop(["target", "Truth", "event_weight"], axis=1)
         y = df["target"]
+        weights = df["event_weight"]
 
         skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True, random_state=42)
 
@@ -183,6 +179,7 @@ class Analysis:
 
             X_train, X_test = X.iloc[train_index], X.iloc[test_index]
             y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+            weights_test = weights.iloc[test_index]
             df_train = df.iloc[train_index]
             df_test = df.iloc[test_index]
 
@@ -193,7 +190,7 @@ class Analysis:
             )
 
             results = self.train_and_evaluate_models(
-                X_train, X_test, y_train, y_test, df_test
+                X_train, X_test, y_train, y_test, weights_test, df_test
             )
 
             self.visualize_results(results, df_test, fold_dir)
@@ -229,7 +226,9 @@ class Analysis:
         self.logger.info("Preprocessing data...")
         return self.preprocessor.prepare_data(features)
 
-    def train_and_evaluate_models(self, X_train, X_test, y_train, y_test, df_test):
+    def train_and_evaluate_models(
+        self, X_train, X_test, y_train, y_test, weights_test, df_test
+    ):
         results = {}
         for model_name, model in self.models.items():
             if model is None:
@@ -239,11 +238,7 @@ class Analysis:
             model.train(X_train, y_train, X_test, y_test)
             y_pred = model.predict(X_test)
 
-            sample_weights = np.array(
-                [self.cross_sections[label] for label in df_test["Truth"]]
-            )
-            # Ensure we don't have any `None`s
-            assert sample_weights.dtype == np.float64
+            sample_weights = weights_test
 
             thresholds = self.config.get(
                 "evaluation.thresholds",
@@ -262,8 +257,6 @@ class Analysis:
                 y_pred,
                 thresholds,
                 sample_weights,
-                total_luminosity,
-                self.cross_sections,
                 use_real_event_percentiles,
             )
 
@@ -273,7 +266,7 @@ class Analysis:
                 y_pred,
                 df_test["combined_invariant_mass"],
                 df_test["Truth"],
-                self.cross_sections,
+                weights_test,
                 total_luminosity,
                 cuts,
                 use_real_event_percentiles,
