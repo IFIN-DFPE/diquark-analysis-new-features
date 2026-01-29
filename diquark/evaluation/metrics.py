@@ -1,13 +1,25 @@
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, average_precision_score, auc
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    average_precision_score,
+    auc,
+)
 
 
-def calculate_metrics(y_true: np.ndarray, y_pred: np.ndarray, sample_weights: np.ndarray,
-                      thresholds: np.ndarray, use_real_event_percentiles: bool) -> dict[str, float]:
+def calculate_metrics(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    sample_weights: np.ndarray,
+    thresholds: np.ndarray,
+    use_real_event_percentiles: bool,
+) -> dict[str, float]:
     precision, recall, pr_thresholds = weighted_precision_recall_curve(
-        y_true, y_pred, sample_weights, thresholds,
-        use_real_event_percentiles
+        y_true, y_pred, sample_weights, thresholds, use_real_event_percentiles
     )
     pr_auc = auc(recall, precision)
 
@@ -18,19 +30,24 @@ def calculate_metrics(y_true: np.ndarray, y_pred: np.ndarray, sample_weights: np
         "f1_score": f1_score(y_true, (y_pred > 0.5).astype(int)),
         "roc_auc": roc_auc_score(y_true, y_pred),
         "average_precision": average_precision_score(y_true, y_pred),
-        'weighted_pr_auc': pr_auc,
-        'weighted_precision': precision,
-        'weighted_recall': recall,
-        'weighted_pr_thresholds': pr_thresholds
+        "weighted_pr_auc": pr_auc,
+        "weighted_precision": precision,
+        "weighted_recall": recall,
+        "weighted_pr_thresholds": pr_thresholds,
     }
 
-def weighted_precision_recall_curve(y_true, y_pred, sample_weights, thresholds, use_real_event_percentiles):
 
+def weighted_precision_recall_curve(
+    y_true, y_pred, sample_weights, thresholds, use_real_event_percentiles
+):
     if use_real_event_percentiles:
         sorted_indices = np.argsort(y_pred)
         cumulative_weights = np.cumsum(sample_weights[sorted_indices])
         total_weight = cumulative_weights[-1]
-        percentile_thresholds = [np.searchsorted(cumulative_weights, threshold * total_weight) for threshold in thresholds]
+        percentile_thresholds = [
+            np.searchsorted(cumulative_weights, threshold * total_weight)
+            for threshold in thresholds
+        ]
         thresholds = y_pred[sorted_indices[percentile_thresholds]]
     else:
         thresholds = np.quantile(y_pred, thresholds)
@@ -43,7 +60,7 @@ def weighted_precision_recall_curve(y_true, y_pred, sample_weights, thresholds, 
     true_positives = np.sum(sample_weights[y_true == 1])
 
     for threshold in thresholds:
-        y_pred_binary = (y_pred >= threshold)
+        y_pred_binary = y_pred >= threshold
         tp = np.sum(sample_weights[y_pred_binary & (y_true == 1)])
         fp = np.sum(sample_weights[y_pred_binary & (y_true == 0)])
 

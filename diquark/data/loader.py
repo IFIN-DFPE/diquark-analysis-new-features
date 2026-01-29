@@ -1,12 +1,10 @@
-import functools
-
 import uproot
 import awkward as ak
 
 from tqdm.contrib.concurrent import thread_map
 
-class DataLoader:
 
+class DataLoader:
     def __init__(self, path_dict: dict[str, str], index_start=0, index_stop=None):
         self.default_branches = [
             "Jet",
@@ -34,34 +32,29 @@ class DataLoader:
         with uproot.open(filename) as f:
             tree = f["Delphes"]
             branches = self.filter_fbits(branches)
-            return tree.arrays(branches, library="ak", entry_start=self.index_start, entry_stop=self.index_stop)
+            return tree.arrays(
+                branches,
+                library="ak",
+                entry_start=self.index_start,
+                entry_stop=self.index_stop,
+            )
 
-    def lower_cut_suu_mass(self, arr: ak.Array, mass: float) -> ak.Array:
-        """Filter out jets with mass less than the given value."""
-        mask = (arr["Particle/Particle.PID"] == 9936661) & (arr["Particle/Particle.Status"] == 22)
-        masses = arr["Particle/Particle.Mass"][mask].to_numpy()
-        print(f"Fraction of events passing mass cut: {(masses >= mass).sum() / len(masses):.2f}")
-        return arr[(masses > mass).flatten()]
-
-    def _load_dataset(self, key: str, mass_cut: float = None):
+    def _load_dataset(self, key: str):
         arr = self.read_jet_delphes(self.path_dict[key])
-
-        if key.startswith("SIG") and mass_cut is not None:
-            arr = self.lower_cut_suu_mass(arr, mass_cut)
 
         return key, arr
 
-    def load_data(self, mass_cut: float = None) -> dict[str, ak.Array]:
+    def load_data(self) -> dict[str, ak.Array]:
         """Load all datasets specified in the path dictionary."""
 
         keys = list(self.path_dict.keys())
 
         # Load the datasets in parallel
-        load_dataset = functools.partial(self._load_dataset, mass_cut=mass_cut)
-        datasets = thread_map(load_dataset, keys, max_workers=64, desc="Loading data")
+        datasets = thread_map(
+            self._load_dataset, keys, max_workers=64, desc="Loading data"
+        )
 
         self.datasets = dict(datasets)
         assert len(self.datasets.keys()) == len(datasets), "Duplicate dataset key"
 
         return self.datasets
-

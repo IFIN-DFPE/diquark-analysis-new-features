@@ -1,36 +1,37 @@
-# file: diquark/data/preprocessor.py
-
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split
 from typing import Dict, List, Tuple, Any
 
+
 class Preprocessor:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.scaler_type = config.get('scaler', 'minmax')
-        self.test_size = config.get('test_size', 0.2)
-        self.random_state = config.get('random_state', 42)
-        self.oversample_signal = config.get('oversample_signal', True)
+        self.scaler_type = config.get("scaler", "minmax")
+        self.test_size = config.get("test_size", 0.2)
+        self.random_state = config.get("random_state", 42)
+        self.oversample_signal = config.get("oversample_signal", True)
 
-        if self.scaler_type == 'standard':
+        if self.scaler_type == "standard":
             self.scaler = StandardScaler()
-        elif self.scaler_type == 'minmax':
+        elif self.scaler_type == "minmax":
             self.scaler = MinMaxScaler()
         else:
             raise ValueError(f"Unknown scaler type: {self.scaler_type}")
 
-    def create_dataframe(self, features: Dict[str, Dict[str, np.ndarray]]) -> pd.DataFrame:
+    def create_dataframe(
+        self, features: Dict[str, Dict[str, np.ndarray]]
+    ) -> pd.DataFrame:
         """Creates a pandas DataFrame from the extracted features."""
         df_list = []
         for key, feature_dict in features.items():
             df = pd.DataFrame(feature_dict)
-            df['Truth'] = key
+            df["Truth"] = key
             df_list.append(df)
 
         df = pd.concat(df_list, ignore_index=True)
-        df['target'] = df['Truth'].apply(lambda x: 1 if 'SIG' in x else 0)
+        df["target"] = df["Truth"].apply(lambda x: 1 if "SIG" in x else 0)
         return df
 
     def scale_features(self, X: np.ndarray) -> np.ndarray:

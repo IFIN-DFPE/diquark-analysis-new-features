@@ -45,11 +45,6 @@ class Analysis:
         )
         backgrounds_config = ConfigManager(backgrounds_config_file_path)
 
-        # Sanity check for matching phase space cuts
-        assert self.config.get_required(
-            "data.mass_cut"
-        ) == backgrounds_config.get_required("backgrounds.mass_cut")
-
         backgrounds_directory = Path(
             backgrounds_config.get_required("backgrounds.base_directory")
         )
@@ -210,7 +205,7 @@ class Analysis:
 
     def load_data(self):
         self.logger.info("Loading data...")
-        return self.data_loader.load_data(self.config.get("data.mass_cut"))
+        return self.data_loader.load_data()
 
     def extract_features(self, data):
         self.logger.info("Extracting features...")
@@ -422,8 +417,18 @@ class Analysis:
         if mean == 0 and std == 0:
             return "0.000e+00 ± 0.000e+00"
 
-        mean_magnitude = int(np.floor(np.log10(abs(mean)))) if mean != 0 else 0
-        std_magnitude = int(np.floor(np.log10(abs(std)))) if std != 0 else 0
+        if np.isinf(mean) or np.isinf(std):
+            return f"{mean}"
+
+        if abs(mean) > 1e-10:
+            mean_magnitude = int(np.floor(np.log10(abs(mean))))
+        else:
+            mean_magnitude = 0
+
+        if abs(std) > 1e-10:
+            std_magnitude = int(np.floor(np.log10(abs(std))))
+        else:
+            std_magnitude = 0
 
         precision = max(0, mean_magnitude - std_magnitude + 3)
 
