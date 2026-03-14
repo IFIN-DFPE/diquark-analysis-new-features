@@ -11,6 +11,7 @@ class FeatureExtractor:
 
     def _flattened_feature_names(self, name: str) -> list[str]:
         return [
+            f"{name}_sum",
             f"{name}_min",
             f"{name}_mean",
             f"{name}_stddev",
@@ -147,6 +148,7 @@ class FeatureExtractor:
 
     def flatten_feature(self, name: str, data: ak.Array) -> dict:
         return {
+            f"{name}_sum": ak.sum(data, axis=-1).to_numpy(),
             f"{name}_min": ak.min(data, axis=-1, mask_identity=True)
             .to_numpy()
             .filled(0.0),

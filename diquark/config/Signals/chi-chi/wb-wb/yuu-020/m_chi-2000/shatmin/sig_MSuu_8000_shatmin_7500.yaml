@@ -1,0 +1,5 @@
+signal:
+  file: "/data/gmajeri/madgraph-script-generator/diquark-repro/data/signal/Suu_chichi_WbWb_MSuu_8TeV_higher_xqcut/Events/run_01/tag_1_delphes_events.root"
+  chi_mass: 2000
+  suu_mass: 8000
+  cross_section: 1.631E-03

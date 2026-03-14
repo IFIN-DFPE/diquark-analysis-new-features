@@ -46,7 +46,7 @@ class Analysis:
         backgrounds_config = ConfigManager(backgrounds_config_file_path)
 
         backgrounds_directory = Path(
-            backgrounds_config.get_required("backgrounds.base_directory")
+            backgrounds_config.get("backgrounds.base_directory", "/")
         )
         backgrounds_file_names = backgrounds_config.get("backgrounds.file_names", {})
         backgrounds_file_name_mapping = backgrounds_config.get(
