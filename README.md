@@ -1,8 +1,9 @@
-# Diquark Analisys
+# Diquark Analysis
 
-Data Analysis for the vectorlike quark search in the fully hadronic channel.
+Data analysis framework for the vectorlike quark search in the fully hadronic channel.
 
 ## Requirements
+
 Setting up the project locally requires:
 - [Python 3.13](https://www.python.org/downloads/release/python-3135/)
 - [Poetry](https://python-poetry.org/docs/#installation) for dependency management.
