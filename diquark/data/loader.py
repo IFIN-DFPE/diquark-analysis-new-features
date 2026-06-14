@@ -1,3 +1,6 @@
+from pathlib import Path
+from typing import Mapping
+
 import uproot
 import awkward as ak
 
@@ -5,16 +8,19 @@ from tqdm.contrib.concurrent import thread_map
 
 
 class DataLoader:
-    def __init__(self, path_dict: dict[str, str], index_start=0, index_stop=None):
+    def __init__(
+        self, path_dict: Mapping[str, Path | str], index_start=0, index_stop=None
+    ):
         self.default_branches = [
             "Jet",
             "Jet/Jet.PT",
             "Jet/Jet.Eta",
             "Jet/Jet.Phi",
+            "Jet/Jet.Mass",
             "Jet/Jet.BTag",
-            "Particle/Particle.PID",
-            "Particle/Particle.Status",
-            "Particle/Particle.Mass",
+            # "Particle/Particle.PID",
+            # "Particle/Particle.Status",
+            # "Particle/Particle.Mass",
         ]
         self.path_dict = path_dict
         self.index_start = index_start
@@ -24,7 +30,9 @@ class DataLoader:
         """Filter out branch names containing 'fBits'."""
         return [b for b in branches if "fBits" not in b]
 
-    def read_jet_delphes(self, filename: str, branches: list[str] = None) -> ak.Array:
+    def read_jet_delphes(
+        self, filename: str | Path, branches: list[str] | None = None
+    ) -> ak.Array:
         """Read a delphes output TTree from a ROOT file into an awkward array."""
         if branches is None:
             branches = self.default_branches
