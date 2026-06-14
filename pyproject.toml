@@ -7,7 +7,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.13,<3.14"
-pandas = "^2.3.1"
+pandas = "^3.0"
 awkward = "^2.8.5"
 tqdm = "^4.67.1"
 uproot = "^5.6.3"
