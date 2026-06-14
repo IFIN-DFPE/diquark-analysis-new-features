@@ -1,7 +1,7 @@
 version: 1.0
 data:
-  backgrounds_file: "bkg_8000.yaml"
-  signal_file: "chi-chi/wb-zt/sig_8000.yaml"
+  backgrounds_file: "MadGraph5_Backgrounds/bkg_sqrtsmin_7500_ptj_0.yaml"
+  signal_file: "chi-chi/wb-wb/yuu-020/m_chi-2000/sqrtsmin/sig_MSuu_8000_sqrtsmin_7500_ptj_0.yaml"
   total_luminosity: 3000
 
 cross_validation:
@@ -14,26 +14,17 @@ feature_extraction:
 preprocessing:
   scaler: "minmax"
   test_size: 0.2
-  random_state: 42
-  # Why would it be OK to oversample signal?? -> could lead to overfitting
-  # (although, I did find papers where they used the same number of signal and background events)
-  oversample_signal: false
+  random_state: 13
+  oversample_signal: true
 
 models:
   random_forest:
     n_estimators: 200
-    max_depth: null
-    min_samples_split: 2
-    min_samples_leaf: 1
-    random_state: 42
+    random_state: 17
 
   gradient_boosting:
     n_estimators: 200
-    learning_rate: 0.1
-    max_depth: 3
-    subsample: 1.0
-    colsample_bytree: 1.0
-    random_state: 42
+    random_state: 17
 
 evaluation:
   metrics:
@@ -44,7 +35,8 @@ evaluation:
     - roc_auc
     - average_precision
   evaluation:
-    thresholds: [0.2, 0.5, 0.8, 0.90, 0.925, 0.95, 0.96, 0.97, 0.98, 0.99]
+    thresholds:
+      [0.2, 0.5, 0.6, 0.7, 0.8, 0.85, 0.90, 0.925, 0.95, 0.96, 0.97, 0.98, 0.99]
     use_real_event_percentiles: false
 
 visualization:
@@ -55,7 +47,7 @@ visualization:
     - sig_bkg_metrics
 
 results:
-  directory: "results/New_Channels/wb-zt/136_S8000_B7500"
+  directory: "results/Min_pT_Study/MSuu_8000_sqrtsmin_7500_ptj_0"
   save_predictions: true
   save_feature_importances: true
 

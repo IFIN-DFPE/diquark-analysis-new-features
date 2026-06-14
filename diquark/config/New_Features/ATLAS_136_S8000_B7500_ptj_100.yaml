@@ -1,7 +1,7 @@
 version: 1.0
 data:
-  backgrounds_file: "MadGraph5_Backgrounds/bkg_shatmin_7500.yaml"
-  signal_file: "chi-chi/wb-wb/yuu-020/m_chi-2000/shatmin/sig_MSuu_8000_shatmin_7500.yaml"
+  backgrounds_file: "bkg_7500_ptj_100.yaml"
+  signal_file: "chi-chi/wb-wb/yuu-020/m_chi-2000/sig_8000.yaml"
   total_luminosity: 3000
 
 cross_validation:
@@ -9,7 +9,7 @@ cross_validation:
   n_folds: 5
 
 feature_extraction:
-  n_jets: 32
+  n_jets: 6
 
 preprocessing:
   scaler: "minmax"
@@ -19,11 +19,11 @@ preprocessing:
 
 models:
   random_forest:
-    n_estimators: 128
+    n_estimators: 200
     random_state: 17
 
   gradient_boosting:
-    n_estimators: 128
+    n_estimators: 200
     random_state: 17
 
 evaluation:
@@ -45,7 +45,8 @@ visualization:
     - sig_bkg_metrics
 
 results:
-  directory: "results/MadGraph_Data/MSuu_8000_shatmin_7500"
+  # directory: "results/New_Features/ATLAS_136_S8000_B7500_ptj_100"
+  directory: "results/original_features/pythia_with_pthatmin_100"
   save_predictions: true
   save_feature_importances: true
 

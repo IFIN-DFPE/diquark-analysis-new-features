@@ -1,0 +1,12 @@
+version: 1.0
+backgrounds:
+  file_names:
+    qcd: "/data/gmajeri/madgraph-script-generator/simulations/diquark-repro-small/Suu_8TeV/data/background/qcd/Events/run_01/tag_1_delphes_events.root"
+    ttbar: "/data/gmajeri/madgraph-script-generator/simulations/diquark-repro-small/Suu_8TeV/data/background/ttbar/Events/run_01/tag_1_delphes_events.root"
+    w_plus_jets: "/data/gmajeri/madgraph-script-generator/simulations/diquark-repro-small/Suu_8TeV/data/background/w_plus_jets/Events/run_01/tag_1_delphes_events.root"
+    diboson: "/data/gmajeri/madgraph-script-generator/simulations/diquark-repro-small/Suu_8TeV/data/background/diboson/Events/run_01/tag_1_delphes_events.root"
+  cross_sections:
+    qcd: 69.45
+    ttbar: 0.1561
+    w_plus_jets: 0.87
+    diboson: 7.993E-02

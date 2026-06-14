@@ -1,0 +1,10 @@
+version: 1.0
+backgrounds:
+  file_names:
+    qcd_2_to_2: "/data/gmajeri/madgraph-script-generator/simulations/qcd-backgrounds/Suu_8TeV/data/qcd_2_to_2/Events/run_01/tag_1_delphes_events.root"
+    qcd_2_to_3: "/data/gmajeri/madgraph-script-generator/simulations/qcd-backgrounds/Suu_8TeV/data/qcd_2_to_3/Events/run_01/tag_1_delphes_events.root"
+    qcd_2_to_4: "/data/gmajeri/madgraph-script-generator/simulations/qcd-backgrounds/Suu_8TeV/data/qcd_2_to_4/Events/run_01/tag_1_delphes_events.root"
+  cross_sections:
+    qcd_2_to_2: 0.5702
+    qcd_2_to_3: 2.295
+    qcd_2_to_4: 4.466
