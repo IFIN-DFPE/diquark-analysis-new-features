@@ -30,6 +30,8 @@ class NewFeatureExtractor(BaseFeatureExtractor):
             *self._flattened_feature_names("p_T"),
             *self._flattened_feature_names("eta"),
             *self._flattened_feature_names("phi"),
+            *self._flattened_feature_names("b_tag"),
+            *self._flattened_feature_names("mass"),
             *self._flattened_feature_names("delta_r"),
             "sphericity",
             "aplanarity",
@@ -189,6 +191,14 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         features |= self.flatten_feature("p_T", p_T)
         features |= self.flatten_feature("eta", eta)
         features |= self.flatten_feature("phi", phi)
+
+        b_tag = data["Jet/Jet.BTag"]
+        features |= self.flatten_feature("b_tag", b_tag)
+
+        mass = data["Jet/Jet.Mass"]
+        features |= self.flatten_feature("mass", mass)
+
+        mass = self._pad_jet_array(mass)
 
         delta_r = self.delta_r(
             self._pad_jet_array(eta), self._pad_jet_array(phi), self._pad_jet_array(p_T)
