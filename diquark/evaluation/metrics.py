@@ -1,3 +1,5 @@
+from pandas.core.frame import DataFrame
+
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
@@ -188,7 +190,15 @@ def weighted_precision_recall_curve(
 #     return df_counts
 
 
-def calculate_signal_background_metrics(y_true, y_pred, thresholds, sample_weights, total_luminosity, cross_sections, use_real_event_percentiles):
+def calculate_signal_background_metrics(
+    y_true,
+    y_pred,
+    thresholds,
+    sample_weights,
+    total_luminosity,
+    cross_sections,
+    use_real_event_percentiles,
+):
     signal = y_true == 1
     background = y_true == 0
 
@@ -203,7 +213,12 @@ def calculate_signal_background_metrics(y_true, y_pred, thresholds, sample_weigh
         total_weight = cumulative_weights[-1]
 
         # Calculate thresholds based on weighted percentiles
-        thresholds = np.array([sorted_pred[np.searchsorted(cumulative_weights / total_weight, t)] for t in thresholds])
+        thresholds = np.array(
+            [
+                sorted_pred[np.searchsorted(cumulative_weights / total_weight, t)]
+                for t in thresholds
+            ]
+        )
     else:
         # Use regular percentiles when the flag is False
         thresholds = np.quantile(y_pred, np.array(thresholds))
@@ -219,8 +234,17 @@ def calculate_signal_background_metrics(y_true, y_pred, thresholds, sample_weigh
         s = np.sum(y_pred_binary[signal] * sample_weights[signal])
         b = np.sum(y_pred_binary[background] * sample_weights[background])
 
-        signal_eff.append(np.sum(y_pred_binary[signal] * sample_weights[signal]) / np.sum(sample_weights[signal]))
-        bkg_rej.append(1 - (np.sum(y_pred_binary[background] * sample_weights[background]) / np.sum(sample_weights[background])))
+        signal_eff.append(
+            np.sum(y_pred_binary[signal] * sample_weights[signal])
+            / np.sum(sample_weights[signal])
+        )
+        bkg_rej.append(
+            1
+            - (
+                np.sum(y_pred_binary[background] * sample_weights[background])
+                / np.sum(sample_weights[background])
+            )
+        )
         significance.append(s / np.sqrt(s + b) if (s + b) > 0 else 0)
         s_over_b.append(s / b if b > 0 else np.inf)
 
@@ -229,11 +253,22 @@ def calculate_signal_background_metrics(y_true, y_pred, thresholds, sample_weigh
         "background_rejection": np.array(bkg_rej),
         "significance": np.array(significance),
         "s_over_b": np.array(s_over_b),
-        "thresholds": thresholds
+        "thresholds": thresholds,
     }
 
-def calculate_counts_for_score_cuts(y_true, y_pred, mnj, truth, cross_sections, total_luminosity, cuts, use_real_event_percentiles):
+
+def calculate_counts_for_score_cuts(
+    y_true,
+    y_pred,
+    mnj,
+    truth,
+    cross_sections,
+    total_luminosity,
+    cuts,
+    use_real_event_percentiles,
+) -> tuple[DataFrame, DataFrame]:
     results = {}
+    raw_counts = {}
 
     if use_real_event_percentiles:
         weights = np.array([cross_sections[t] for t in truth])
@@ -244,12 +279,14 @@ def calculate_counts_for_score_cuts(y_true, y_pred, mnj, truth, cross_sections, 
         total_weight = cumulative_weights[-1]
 
     keys = np.unique(truth)
-    truth_masks = { key: truth == key for key in keys }
-    truth_counts = { key: truth_masks[key].sum() for key in keys }
+    truth_masks = {key: truth == key for key in keys}
+    truth_counts = {key: truth_masks[key].sum() for key in keys}
 
     for cut in cuts:
         if use_real_event_percentiles:
-            threshold = sorted_pred[np.searchsorted(cumulative_weights / total_weight, cut)]
+            threshold = sorted_pred[
+                np.searchsorted(cumulative_weights / total_weight, cut)
+            ]
         else:
             threshold = np.quantile(y_pred, cut)
 
@@ -264,22 +301,34 @@ def calculate_counts_for_score_cuts(y_true, y_pred, mnj, truth, cross_sections, 
         }
         results[cut] = counts
 
+        raw_counts[cut] = {k: len(v) for k, v in scores.items()}
+
     df_counts = pd.DataFrame(results)
+    df_raw_counts = pd.DataFrame(raw_counts)
 
     # Ensure 'SIG:Suu' is the last row before summary rows
-    if 'SIG:Suu' in df_counts.index:
-        sig_row = df_counts.loc['SIG:Suu']
-        df_counts = pd.concat([df_counts.drop('SIG:Suu'), sig_row.to_frame().T])
+    if "SIG:Suu" in df_counts.index:
+        sig_row = df_counts.loc["SIG:Suu"]
+        df_counts = pd.concat([df_counts.drop("SIG:Suu"), sig_row.to_frame().T])
 
-    bkg_counts = df_counts.loc[[idx for idx in df_counts.index if idx != 'SIG:Suu']].sum()
-    sig_counts = df_counts.loc['SIG:Suu'] if 'SIG:Suu' in df_counts.index else pd.Series(0, index=df_counts.columns)
+    bkg_counts = df_counts.loc[
+        [idx for idx in df_counts.index if idx != "SIG:Suu"]
+    ].sum()
+    sig_counts = (
+        df_counts.loc["SIG:Suu"]
+        if "SIG:Suu" in df_counts.index
+        else pd.Series(0, index=df_counts.columns)
+    )
     s_over_b = sig_counts / bkg_counts
 
-    df_counts.loc['BKG:sum'] = bkg_counts
-    df_counts.loc['S/B'] = s_over_b
+    df_counts.loc["BKG:sum"] = bkg_counts
+    df_counts.loc["S/B"] = s_over_b
 
     # Add row names as the first column
     df_counts = df_counts.reset_index()
-    df_counts = df_counts.rename(columns={'index': 'Process'})
+    df_counts = df_counts.rename(columns={"index": "Process"})
 
-    return df_counts
+    df_raw_counts = df_raw_counts.reset_index()
+    df_raw_counts = df_raw_counts.rename(columns={"index": "Process"})
+
+    return df_counts, df_raw_counts

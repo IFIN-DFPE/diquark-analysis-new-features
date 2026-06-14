@@ -268,7 +268,7 @@ class Analysis:
             )
 
             cuts = thresholds
-            df_counts = calculate_counts_for_score_cuts(
+            df_counts, df_raw_counts = calculate_counts_for_score_cuts(
                 y_test,
                 y_pred,
                 df_test["combined_invariant_mass"],
@@ -283,7 +283,9 @@ class Analysis:
                 "metrics": metrics,
                 "sig_bkg_metrics": sig_bkg_metrics,
                 "predictions": y_pred,
+                "sample_weights": sample_weights,
                 "counts": df_counts,
+                "raw_counts": df_raw_counts,
             }
             if hasattr(model, "feature_importances"):
                 results[model_name]["feature_importances"] = model.feature_importances()
@@ -324,6 +326,11 @@ class Analysis:
             self.results_manager.save_dataframe(
                 model_results["counts"],
                 f"{model_name}_counts.csv",
+                custom_dir=results_dir,
+            )
+            self.results_manager.save_dataframe(
+                model_results["raw_counts"],
+                f"{model_name}_raw_counts.csv",
                 custom_dir=results_dir,
             )
 
