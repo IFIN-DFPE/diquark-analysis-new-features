@@ -157,22 +157,22 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         return np.nan_to_num(raw_vector_sum_pts)
 
     def flatten_feature(
-        self, name: str, data: ak.Array | np.ndarray
+        self, name: str, data: ak.Array | np.ndarray, fill_value: int | float = -1
     ) -> dict[str, np.ndarray]:
         return {
             f"{name}_sum": ak.sum(data, axis=-1).to_numpy(),
             f"{name}_min": ak.min(data, axis=-1, mask_identity=True)
             .to_numpy()
-            .filled(0.0),
+            .filled(fill_value),
             f"{name}_mean": ak.mean(data, axis=-1, mask_identity=True)
             .to_numpy()
-            .filled(0.0),
+            .filled(fill_value),
             f"{name}_stddev": ak.std(data, axis=-1, mask_identity=True)
             .to_numpy()
-            .filled(0.0),
+            .filled(fill_value),
             f"{name}_max": ak.max(data, axis=-1, mask_identity=True)
             .to_numpy()
-            .filled(0.0),
+            .filled(fill_value),
         }
 
     def compute_all(self, data: ak.Array) -> dict[str, np.ndarray]:
@@ -193,7 +193,7 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         features |= self.flatten_feature("phi", phi)
 
         b_tag = data["Jet/Jet.BTag"]
-        features |= self.flatten_feature("b_tag", b_tag)
+        features |= self.flatten_feature("b_tag", b_tag, fill_value=0)
 
         mass = data["Jet/Jet.Mass"]
         features |= self.flatten_feature("mass", mass)
