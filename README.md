@@ -1,23 +1,13 @@
-# Diquark Analysis
+# Ultraheavy Diquark Data Analysis
 
 Data analysis framework for the vectorlike quark search in the fully hadronic channel.
 
 ## Requirements
 
-Setting up the project locally requires:
-- [Python 3.13](https://www.python.org/downloads/release/python-3135/)
-- [Poetry](https://python-poetry.org/docs/#installation) for dependency management.
+The recommended approach to set up the project locally is by using the [`uv`](https://docs.astral.sh/uv/) tool. Just run `uv sync` in this directory to create a new virtual environment for the tool and then run it through `uv run diquark/analysis.py`.
 
-## Setup
-1. Clone the repository
-```bash
-$ git clone https://github.com/imdinu/diquark-analysis.git
-```
-
-2. Install the dependencies
-```bash
-$ poetry install
-```
+Alternatively, if you already have [Python](https://www.python.org/), [venv](https://docs.python.org/3/library/venv.html) and [pip](https://pip.pypa.io/en/stable/) installed, you can create a new virtual environment and install this project in it by running `pip install .` in this directory.
 
 ## Usage
-Run the `python diquark/analysis.py`
+
+If you've installed this package as mentioned above, it should be enough to run the `diquark` script which will be added to the environment's path.

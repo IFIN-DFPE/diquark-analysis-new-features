@@ -445,7 +445,7 @@ class Analysis:
         return f"{mean_formatted} ± {std_formatted}"
 
 
-if __name__ == "__main__":
+def main() -> None:
     random.seed(17)
     np.random.seed(17)
 
@@ -464,3 +464,7 @@ if __name__ == "__main__":
 
     analysis = Analysis(args.config)
     analysis.run()
+
+
+if __name__ == "__main__":
+    main()
