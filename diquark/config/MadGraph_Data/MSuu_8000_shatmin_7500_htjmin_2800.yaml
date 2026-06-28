@@ -16,15 +16,15 @@ preprocessing:
   scaler: "standard"
   test_size: 0.2
   random_state: 15
-  oversample_signal: false
+  oversample_signal: true
 
 models:
-  # random_forest:
-  #   n_estimators: 512
-  #   random_state: 17
+  random_forest:
+    n_estimators: 1024
+    random_state: 23
 
   gradient_boosting:
-    n_estimators: 4096
+    n_estimators: 1024
     random_state: 23
 
 evaluation:
