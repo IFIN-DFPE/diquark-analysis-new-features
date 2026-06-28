@@ -1,0 +1,211 @@
+from math import comb
+import numpy as np
+import awkward as ak
+from itertools import combinations
+
+from diquark.features.feature_extractor import BaseFeatureExtractor
+
+
+class OldFeatureExtractor(BaseFeatureExtractor):
+    max_jets: int
+
+    def __init__(self, max_jets: int) -> None:
+        assert max_jets <= 10, (
+            "Old feature extraction code doesn't support many final state jets!"
+        )
+
+        super().__init__(self._generate_feature_names())
+        self.max_jets = max_jets
+
+    def _generate_feature_names(self) -> list[str]:
+        basic_features = [
+            "jet_multiplicity",
+            *[f"leading_jet_pt_{i + 1}" for i in range(self.max_jets)],
+            *[f"leading_jet_eta_{i + 1}" for i in range(self.max_jets)],
+            *[f"leading_jet_phi_{i + 1}" for i in range(self.max_jets)],
+            *[
+                f"delta_r_{i + 1}_{j + 1}"
+                for i in range(self.max_jets)
+                for j in range(i + 1, self.max_jets)
+            ],
+            # Don't include this in feature names list,
+            # since it's dropped before doing cross-validation.
+            # "combined_invariant_mass",
+        ]
+
+        for k in [2, 3]:
+            n_choose_k = comb(self.max_jets, k)
+            basic_features.extend(
+                [f"{k}jet_invariant_mass_{i + 1}" for i in range(n_choose_k)]
+            )
+            # basic_features.extend([f"{k}jet_vector_sum_pt_{i+1}" for i in range(n_choose_k)])
+
+        combined_features = [
+            "m3j_m6j_ratio",
+            "m2j_m6j_ratio",
+            "n_jet_pairs_near_w_mass",
+            "max_delta_r",
+            "smallest_delta_r_mass",
+            "max_vector_sum_pt",
+        ]
+
+        return basic_features + combined_features
+
+    def _leading_jet_array(self, data: ak.Array, key: str) -> np.ndarray:
+        jet_pt_padded = ak.pad_none(data[key], self.max_jets, axis=-1, clip=True)
+        return ak.to_numpy(ak.fill_none(jet_pt_padded, 0))
+
+    def jet_multiplicity(self, data: ak.Array) -> np.ndarray:
+        return ak.to_numpy(data["Jet"])
+
+    def leading_jet_pt(self, data: ak.Array) -> np.ndarray:
+        return self._leading_jet_array(data, "Jet/Jet.PT")
+
+    def leading_jet_eta(self, data: ak.Array) -> np.ndarray:
+        return self._leading_jet_array(data, "Jet/Jet.Eta")
+
+    def leading_jet_phi(self, data: ak.Array) -> np.ndarray:
+        return self._leading_jet_array(data, "Jet/Jet.Phi")
+
+    def delta_r(
+        self, etas: np.ndarray, phis: np.ndarray, pts: np.ndarray
+    ) -> np.ndarray:
+        n_events, _ = etas.shape
+        n_pairs = self.max_jets * (self.max_jets - 1) // 2
+
+        delta_eta = etas[:, :, None] - etas[:, None, :]
+        delta_phi = self._calculate_delta_phi(phis[:, :, None], phis[:, None, :])
+
+        delta_r_matrix = np.sqrt(delta_eta**2 + delta_phi**2)
+        delta_r_matrix = np.triu(delta_r_matrix, k=1)
+
+        pts_mask = np.ones((n_events, self.max_jets, self.max_jets), dtype=bool)
+        for i in range(n_events):
+            np.fill_diagonal(pts_mask[i], 0)
+        pts_mask &= pts[:, :, None] * pts[:, None, :] > 0
+
+        delta_r_matrix *= pts_mask
+        delta_r_array = delta_r_matrix.reshape(n_events, -1)[:, :n_pairs]
+
+        return delta_r_array
+
+    @staticmethod
+    def _calculate_delta_phi(phi1: np.ndarray, phi2: np.ndarray) -> np.ndarray:
+        dphi = phi1 - phi2
+        dphi = np.where(dphi > np.pi, dphi - 2 * np.pi, dphi)
+        dphi = np.where(dphi < -np.pi, dphi + 2 * np.pi, dphi)
+        return dphi
+
+    def combined_invariant_mass(
+        self, px: np.ndarray, py: np.ndarray, pz: np.ndarray, E: np.ndarray
+    ) -> np.ndarray:
+        px_total = np.sum(px, axis=1)
+        py_total = np.sum(py, axis=1)
+        pz_total = np.sum(pz, axis=1)
+        E_total = np.sum(E, axis=1)
+
+        mass = np.sqrt(E_total**2 - px_total**2 - py_total**2 - pz_total**2)
+        return mass
+
+    def n_jet_invariant_mass(
+        self, px: np.ndarray, py: np.ndarray, pz: np.ndarray, E: np.ndarray, k: int
+    ) -> np.ndarray:
+        combination_indices = np.array(list(combinations(range(self.max_jets), k)))
+
+        raw_masses = np.sqrt(
+            E[:, combination_indices].sum(axis=-1) ** 2
+            - px[:, combination_indices].sum(axis=-1) ** 2
+            - py[:, combination_indices].sum(axis=-1) ** 2
+            - pz[:, combination_indices].sum(axis=-1) ** 2
+        )
+
+        masses = np.nan_to_num(raw_masses)
+        sorted_masses = -np.sort(-masses, axis=-1)
+
+        return sorted_masses
+
+    def n_jet_vector_sum_pt(self, px: np.ndarray, py: np.ndarray, k: int) -> np.ndarray:
+        combination_indices = np.array(list(combinations(range(self.max_jets), k)))
+
+        vector_sum_pts = np.sqrt(
+            px[:, combination_indices].sum(axis=-1) ** 2
+            + py[:, combination_indices].sum(axis=-1) ** 2
+        )
+        sorted_vector_sum_pts = -np.sort(-vector_sum_pts, axis=-1)
+
+        return sorted_vector_sum_pts
+
+    def flatten_features(
+        self, features: dict[str, np.ndarray]
+    ) -> dict[str, np.ndarray]:
+        flat_features = {}
+        for feature, values in features.items():
+            match values.ndim:
+                case 1:
+                    flat_features[feature] = values
+                case 2:
+                    for i in range(values.shape[1]):
+                        flat_features[f"{feature}_{i + 1}"] = values[:, i]
+                case _:
+                    raise ValueError(f"Invalid feature shape: {values.shape}")
+        return flat_features
+
+    def compute_all(self, data: ak.Array) -> dict[str, np.ndarray]:
+        jet_pt = self.leading_jet_pt(data)
+        jet_eta = self.leading_jet_eta(data)
+        jet_phi = self.leading_jet_phi(data)
+
+        jet_px = jet_pt * np.cos(jet_phi)
+        jet_py = jet_pt * np.sin(jet_phi)
+        jet_pz = jet_pt * np.sinh(jet_eta)
+        jet_E = jet_pt * np.cosh(jet_eta)
+
+        features = {
+            "jet_multiplicity": self.jet_multiplicity(data),
+            "leading_jet_pt": jet_pt,
+            "leading_jet_eta": jet_eta,
+            "leading_jet_phi": jet_phi,
+            "delta_r": self.delta_r(jet_eta, jet_phi, jet_pt),
+            "combined_invariant_mass": self.combined_invariant_mass(
+                jet_px, jet_py, jet_pz, jet_E
+            ),
+        }
+
+        for k in [2, 3]:
+            features[f"{k}jet_invariant_mass"] = self.n_jet_invariant_mass(
+                jet_px, jet_py, jet_pz, jet_E, k
+            )
+            features[f"{k}jet_vector_sum_pt"] = self.n_jet_vector_sum_pt(
+                jet_px, jet_py, k
+            )
+
+        # Compute combined features
+        mnj = features["combined_invariant_mass"]
+        m3j = features["3jet_invariant_mass"]
+        m2j = features["2jet_invariant_mass"]
+
+        features[f"m3j_m{self.max_jets}j_ratio"] = np.divide(
+            m3j.mean(axis=1, where=m3j != 0),
+            mnj,
+            out=np.zeros_like(mnj),
+            where=mnj != 0,
+        )
+
+        features[f"m2j_m{self.max_jets}j_ratio"] = np.divide(
+            m2j.mean(axis=1, where=m2j != 0),
+            mnj,
+            out=np.zeros_like(mnj),
+            where=mnj != 0,
+        )
+
+        features["n_jet_pairs_near_w_mass"] = np.sum((m2j >= 60) & (m2j <= 100), axis=1)
+        features["max_delta_r"] = np.max(features["delta_r"], axis=1)
+
+        smallest_delta_r_indices = np.argmin(features["delta_r"], axis=1)
+        features["smallest_delta_r_mass"] = np.choose(smallest_delta_r_indices, m2j.T)
+
+        features["max_vector_sum_pt"] = np.max(features["2jet_vector_sum_pt"], axis=1)
+        features.pop("3jet_vector_sum_pt")
+        features.pop("2jet_vector_sum_pt")
+
+        return self.flatten_features(features)

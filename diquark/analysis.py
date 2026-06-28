@@ -10,7 +10,11 @@ from diquark.config.config_manager import ConfigManager
 from diquark.utils.logger import setup_logger
 from diquark.utils.results_manager import ResultsManager
 from diquark.data.loader import DataLoader
-from diquark.features.feature_extractor import FeatureExtractor
+from diquark.features import (
+    BaseFeatureExtractor,
+    NewFeatureExtractor,
+    OldFeatureExtractor,
+)
 from diquark.data.preprocessor import Preprocessor
 
 # from diquark.models.neural_network import NeuralNetworkModel
@@ -25,6 +29,8 @@ from diquark.evaluation.visualizations import plot_results
 
 
 class Analysis:
+    feature_extractor: BaseFeatureExtractor
+
     def __init__(self, config_path: str):
         self.config = ConfigManager(config_path)
         self.logger = setup_logger(
@@ -55,8 +61,9 @@ class Analysis:
 
         files = set()
 
-        def check_root_file_exists(path: str):
-            path = Path(path)
+        def check_root_file_exists(path: str | Path) -> Path:
+            if not isinstance(path, Path):
+                path = Path(path)
             if not path.exists():
                 raise Exception(f"Could not find background file at path '{path}'")
             files.add(path)
@@ -101,11 +108,21 @@ class Analysis:
         self.use_cross_validation = self.config.get("cross_validation.enabled", False)
         self.n_folds = self.config.get("cross_validation.n_folds", 1)
 
-        self.feature_extractor = FeatureExtractor(
-            n_jets=self.config.get_required("feature_extraction.n_jets"),
-            chi_mass=signal_config.get_required("signal.chi_mass"),
-            suu_mass=signal_config.get_required("signal.suu_mass"),
-        )
+        feature_set = self.config.get("feature_extraction.feature_set", "new")
+
+        if feature_set == "new":
+            self.feature_extractor = NewFeatureExtractor(
+                max_jets=self.config.get_required("feature_extraction.n_jets"),
+                chi_mass=signal_config.get_required("signal.chi_mass"),
+                suu_mass=signal_config.get_required("signal.suu_mass"),
+            )
+        elif feature_set == "old":
+            self.feature_extractor = OldFeatureExtractor(
+                max_jets=self.config.get_required("feature_extraction.n_jets")
+            )
+        else:
+            raise Exception(f"Unknown/unsupported feature set: '{feature_set}'")
+
         self.preprocessor = Preprocessor(self.config.get("preprocessing", {}))
 
         self.models = {
