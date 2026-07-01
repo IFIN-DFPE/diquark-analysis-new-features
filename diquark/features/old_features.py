@@ -14,8 +14,8 @@ class OldFeatureExtractor(BaseFeatureExtractor):
             "Old feature extraction code doesn't support many final state jets!"
         )
 
-        super().__init__(self._generate_feature_names())
         self.max_jets = max_jets
+        super().__init__(self._generate_feature_names())
 
     def _generate_feature_names(self) -> list[str]:
         basic_features = [
@@ -28,9 +28,7 @@ class OldFeatureExtractor(BaseFeatureExtractor):
                 for i in range(self.max_jets)
                 for j in range(i + 1, self.max_jets)
             ],
-            # Don't include this in feature names list,
-            # since it's dropped before doing cross-validation.
-            # "combined_invariant_mass",
+            "combined_invariant_mass",
         ]
 
         for k in [2, 3]:
@@ -104,7 +102,10 @@ class OldFeatureExtractor(BaseFeatureExtractor):
         pz_total = np.sum(pz, axis=1)
         E_total = np.sum(E, axis=1)
 
-        mass = np.sqrt(E_total**2 - px_total**2 - py_total**2 - pz_total**2)
+        mass_squared = E_total**2 - px_total**2 - py_total**2 - pz_total**2
+        mass_squared = np.where(mass_squared > 0, mass_squared, 0)
+
+        mass = np.sqrt(mass_squared)
         return mass
 
     def n_jet_invariant_mass(

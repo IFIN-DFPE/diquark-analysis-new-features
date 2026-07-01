@@ -10,10 +10,10 @@ class NewFeatureExtractor(BaseFeatureExtractor):
     suu_mass: float
 
     def __init__(self, max_jets: int, chi_mass: float, suu_mass: float) -> None:
-        super().__init__(self._generate_feature_names())
         self.max_jets = max_jets
         self.chi_mass = chi_mass
         self.suu_mass = suu_mass
+        super().__init__(self._generate_feature_names())
 
     def _flattened_feature_names(self, name: str) -> list[str]:
         return [
