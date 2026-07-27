@@ -36,4 +36,6 @@ models/**/plots
 *.png
 *.pdf
 
-jet_no_analysis/
+# SLURM standard output/error filess
+*.out
+*.err

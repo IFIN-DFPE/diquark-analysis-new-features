@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=256
+
+source .venv/bin/activate
 
 # Exit on error, print commands
 set -ex
-for mass_cut in 6500 6750 7000 7250 7500 7750 8000 8250
-do
-    python3 diquark/analysis.py -c "diquark/config/New_Features/ATLAS_136_${mass_cut}_32j_5f.yaml"
-done
+
+# python3 diquark/analysis.py -c "diquark/config/New_Channels/wb-zt/MSuu_8000.yaml"
+
+# python3 diquark/analysis.py -c "diquark/config/MadGraph_Data/MSuu_8000.yaml"
+
+python3 diquark/analysis.py -c "diquark/config/New_Channels/wb-ht/jjb-bbt/MSuu_8000.yaml"

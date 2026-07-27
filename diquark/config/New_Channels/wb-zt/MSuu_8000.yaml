@@ -1,0 +1,54 @@
+version: 1.0
+data:
+  backgrounds_file: "MadGraph5_Backgrounds/bkg_shatmin_7500_ptj_375_etaj_2.5.yaml"
+  signal_file: "chi-chi/wb-zt/sig_MSuu_8000_ptj_375_etaj_2.5.yaml"
+  total_luminosity: 3000
+
+cross_validation:
+  enabled: true
+  n_folds: 5
+
+feature_extraction:
+  n_jets: 32
+
+preprocessing:
+  scaler: "minmax"
+  test_size: 0.2
+  random_state: 13
+  oversample_signal: true
+
+models:
+  random_forest:
+    n_estimators: 256
+    random_state: 17
+
+  gradient_boosting:
+    n_estimators: 256
+    random_state: 17
+
+evaluation:
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - roc_auc
+    - average_precision
+  thresholds: [0.5, 0.6, 0.65, 0.7, 0.8, 0.85, 0.90, 0.925, 0.95]
+  use_real_event_percentiles: false
+
+visualization:
+  plots:
+    - roc_curve
+    - pr_curve
+    - feature_importances
+    - sig_bkg_metrics
+
+results:
+  directory: "results/New_Channels/wb-zt/MSuu_8000"
+  save_predictions: true
+  save_feature_importances: true
+
+logging:
+  file_path: "logs/experiment.log"
+  level: "INFO"
