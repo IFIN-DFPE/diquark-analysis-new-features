@@ -167,9 +167,9 @@ class NewFeatureExtractor(BaseFeatureExtractor):
             f"{name}_mean": ak.mean(data, axis=-1, mask_identity=True)
             .to_numpy()
             .filled(fill_value),
-            f"{name}_stddev": ak.std(data, axis=-1, mask_identity=True)
-            .to_numpy()
-            .filled(fill_value),
+            f"{name}_stddev": np.nan_to_num(
+                ak.std(data, axis=-1, mask_identity=True).to_numpy().filled(fill_value)
+            ),
             f"{name}_max": ak.max(data, axis=-1, mask_identity=True)
             .to_numpy()
             .filled(fill_value),
