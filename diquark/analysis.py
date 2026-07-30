@@ -20,6 +20,7 @@ from diquark.data.preprocessor import Preprocessor
 # from diquark.models.neural_network import NeuralNetworkModel
 from diquark.models.random_forest import RandomForestModel
 from diquark.models.gradient_boosting import GradientBoostingModel
+from diquark.models.tabnet import TabNetModel
 from diquark.evaluation.metrics import (
     calculate_metrics,
     calculate_signal_background_metrics,
@@ -136,6 +137,9 @@ class Analysis:
                 self.config.get("models.gradient_boosting", {})
             )
             if self.config.get("models.gradient_boosting", None)
+            else None,
+            "tabnet": TabNetModel(self.config.get("models.tabnet", {}))
+            if self.config.get("models.tabnet", None)
             else None,
         }
 
