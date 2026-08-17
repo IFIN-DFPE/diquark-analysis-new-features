@@ -1,0 +1,8 @@
+version: 1.0
+backgrounds:
+  file_names:
+    qcd_2_to_2: "/data/gmajeri/madgraph-script-generator/simulations/diquark-sqrt-shat-study/6000_7500/data/qcd_2_to_2/Events/run_01/tag_1_delphes_events.root"
+    qcd_2_to_3: "/data/gmajeri/madgraph-script-generator/simulations/diquark-sqrt-shat-study/6000_7500/data/qcd_2_to_3/Events/run_01/tag_1_delphes_events.root"
+  cross_sections:
+    qcd_2_to_2: 2.708E+04
+    qcd_2_to_3: 5.385E+04

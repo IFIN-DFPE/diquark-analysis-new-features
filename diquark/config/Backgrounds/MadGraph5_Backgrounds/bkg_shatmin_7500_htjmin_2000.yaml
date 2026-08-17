@@ -1,0 +1,16 @@
+version: 1.0
+backgrounds:
+  file_names:
+    qcd: "/data/gmajeri/madgraph-script-generator/simulations/diquark-many-jets/Suu_8TeV/data/background/qcd_merged/merged_events.root"
+    ttbar: "/data/gmajeri/madgraph-script-generator/simulations/diquark-many-jets/Suu_8TeV/data/background/ttbar/Events/run_01/tag_1_delphes_events.root"
+    ttbar_higgs: "/data/gmajeri/madgraph-script-generator/simulations/diquark-many-jets/Suu_8TeV/data/background/ttbar_higgs/Events/run_01/tag_1_delphes_events.root"
+    single_boson: "/data/gmajeri/madgraph-script-generator/simulations/diquark-many-jets/Suu_8TeV/data/background/single_boson/Events/run_01/tag_1_delphes_events.root"
+    diboson: "/data/gmajeri/madgraph-script-generator/simulations/diquark-many-jets/Suu_8TeV/data/background/diboson/Events/run_01/tag_1_delphes_events.root"
+    bbbar_higgs: "/data/gmajeri/madgraph-script-generator/simulations/diquark-many-jets/Suu_8TeV/data/background/bbbar_higgs/Events/run_01/tag_1_delphes_events.root"
+  cross_sections:
+    qcd: 16.976
+    ttbar: 1.661E-02
+    ttbar_higgs: 4.282E-07
+    single_boson: 0.1177
+    diboson: 1.796E-04
+    bbbar_higgs: 1.482E-12

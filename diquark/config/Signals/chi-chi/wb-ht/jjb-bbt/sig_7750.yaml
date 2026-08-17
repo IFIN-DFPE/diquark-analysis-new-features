@@ -1,5 +1,0 @@
-signal:
-  file: "/data/iduminic/diquark-analysis/full-hadro/sgn/chi-chi/wb-ht/jjb-bbt/136_7750_events.root"
-  cross_section: 5.720E-03
-  chi_mass: 2000
-  suu_mass: 7750
