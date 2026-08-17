@@ -43,62 +43,53 @@ class Analysis:
             self.config.get("results.directory", "results")
         )
 
-        config_files_dir = Path(__file__).parent / "config"
+        print("Reading config file...")
+        config_file_dir = Path(config_path).parent
 
         # Load backgrounds config file
-        backgrounds_config_file = self.config.get_required("data.backgrounds_file")
+        print("Loading backgrounds config file...")
+        backgrounds_config_file = Path(
+            self.config.get_required("data.backgrounds_file")
+        )
         backgrounds_config_file_path = (
-            config_files_dir / "Backgrounds" / backgrounds_config_file
+            backgrounds_config_file
+            if backgrounds_config_file.is_absolute()
+            else config_file_dir / backgrounds_config_file
         )
         backgrounds_config = ConfigManager(backgrounds_config_file_path)
 
-        backgrounds_directory = Path(
-            backgrounds_config.get("backgrounds.base_directory", "/")
-        )
-        backgrounds_file_names = backgrounds_config.get("backgrounds.file_names", {})
-        backgrounds_file_name_mapping = backgrounds_config.get(
-            "backgrounds.file_name_mapping", {}
-        )
+        backgrounds: dict[str, object] = backgrounds_config.get("backgrounds", {})
+        background_path_dict: dict[str, Path] = {}
+        background_cross_sections: dict[str, float] = {}
 
-        files = set()
+        for key, data in backgrounds.items():
+            assert isinstance(data, dict), "'backgrounds' should be an object/mapping"
+            file_path = Path(data["file"])
+            if not file_path.exists():
+                raise Exception(f"Could not find background file at path '{file_path}'")
 
-        def check_root_file_exists(path: str | Path) -> Path:
-            if not isinstance(path, Path):
-                path = Path(path)
-            if not path.exists():
-                raise Exception(f"Could not find background file at path '{path}'")
-            files.add(path)
-            return path
-
-        background_path_dict = {
-            f"BKG:{key}": check_root_file_exists(path)
-            for key, path in backgrounds_file_names.items()
-        }
-        assert len(files) == len(background_path_dict.keys())
-
-        def find_root_file_by_name(filename: str) -> Path:
-            results = backgrounds_directory.glob(f"*{filename}*.root")
-            for path in results:
-                files.add(path)
-                return path
-            else:
-                raise Exception(
-                    f"Could not find background file with filename '{filename}'"
-                )
-
-        background_path_dict |= {
-            f"BKG:{key}": find_root_file_by_name(filename)
-            for key, filename in backgrounds_file_name_mapping.items()
-        }
-        assert len(files) == len(background_path_dict.keys())
+            dict_key = f"BKG:{key}"
+            background_path_dict[dict_key] = file_path
+            background_cross_sections[dict_key] = float(data["cross_section"])
 
         # Load signal config file
-        signal_config_file = self.config.get_required("data.signal_file")
-        backgrounds_config_file_path = config_files_dir / "Signals" / signal_config_file
+        print("Loading signal config file...")
+        signal_config_file = Path(self.config.get_required("data.signal_file"))
+        backgrounds_config_file_path = (
+            signal_config_file
+            if signal_config_file.is_absolute()
+            else config_file_dir / signal_config_file
+        )
         signal_config = ConfigManager(backgrounds_config_file_path)
 
-        signal_file = Path(signal_config.get("signal.file"))
+        signal_file = Path(signal_config.get_required("signal.file"))
+        signal_cross_section = float(signal_config.get_required("signal.cross_section"))
+        self.cross_sections = background_cross_sections | {
+            "SIG:Suu": signal_cross_section
+        }
+
         path_dict = background_path_dict | {"SIG:Suu": signal_file}
+        assert set(self.cross_sections.keys()) == set(path_dict.keys())
 
         self.data_loader = DataLoader(
             path_dict,
@@ -142,18 +133,6 @@ class Analysis:
             if self.config.get("models.tabnet", None)
             else None,
         }
-
-        # Load cross-sections from config file
-        background_cross_sections = backgrounds_config.get_required(
-            "backgrounds.cross_sections"
-        )
-        signal_cross_section = signal_config.get_required("signal.cross_section")
-
-        self.cross_sections = {
-            f"BKG:{key}": cross_section
-            for key, cross_section in background_cross_sections.items()
-        } | {"SIG:Suu": signal_cross_section}
-        assert set(self.cross_sections.keys()) == set(path_dict.keys())
 
     def run(self):
         self.logger.info("Starting analysis...")

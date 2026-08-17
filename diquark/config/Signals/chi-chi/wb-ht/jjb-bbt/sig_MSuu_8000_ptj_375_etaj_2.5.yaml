@@ -1,5 +1,0 @@
-signal:
-  file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-signal-combined/Suu_chichi_wbht_jjb_bbt_8TeV_combined.root"
-  cross_section: 2.936E-03
-  chi_mass: 2000
-  suu_mass: 8000

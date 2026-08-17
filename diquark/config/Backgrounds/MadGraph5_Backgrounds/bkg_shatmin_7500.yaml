@@ -1,8 +1,0 @@
-version: 1.0
-backgrounds:
-  file_names:
-    qcd_multijet: "/data/gmajeri/madgraph-script-generator/diquark-repro/data/background/qcd_multijet/Events/run_01/tag_1_delphes_events.root"
-    ttbar_multijet: "/data/gmajeri/madgraph-script-generator/diquark-repro/data/background/ttbar_plus_jets/Events/run_01/tag_1_delphes_events.root"
-  cross_sections:
-    qcd_multijet: 1305
-    ttbar_multijet: 0.9877

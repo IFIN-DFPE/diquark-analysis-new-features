@@ -1,5 +1,0 @@
-signal:
-  file: "/mnt/home/gabrielmajeri/Projects/Research/HEP/madgraph-script-generator/simulations/diquark-many-jets/Suu_8TeV/data/signal/Suu_chichi_wbzt_8TeV/Events/run_01/tag_1_delphes_events.root"
-  cross_section: 1.097E-03
-  chi_mass: 2000
-  suu_mass: 8000

@@ -1,8 +1,0 @@
-version: 1.0
-backgrounds:
-  file_names:
-    qcd: "/data/gmajeri/diquark-simulations/ptj_min_study/ptj_5_etaj_5/output/background/qcd/Events/run_01/tag_1_delphes_events.root"
-    ttbar: "/data/gmajeri/diquark-simulations/ptj_min_study/ptj_5_etaj_5/output/background/ttbar/Events/run_01/tag_1_delphes_events.root"
-  cross_sections:
-    qcd: 2242
-    ttbar: 1.589E-04
