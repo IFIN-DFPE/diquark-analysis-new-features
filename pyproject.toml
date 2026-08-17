@@ -23,8 +23,6 @@ dependencies = [
     "joblib>=1.5.3",
     "pyarrow>=24.0.0",
     "numpy>=2.5.1",
-    "pytorch-tabnet>=4.1.0",
-    "torch>=2.13.0",
 ]
 
 [project.scripts]
@@ -63,4 +61,9 @@ dev = [
     "ipywidgets>=8.1.8",
     "jupyterlab>=4.6.2",
     "ruff>=0.15.20",
+]
+
+gpu = [
+    "pytorch-tabnet>=4.1.0",
+    "torch>=2.13.0",
 ]

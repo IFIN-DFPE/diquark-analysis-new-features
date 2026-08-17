@@ -1,7 +1,6 @@
 from typing import Any
 
 import numpy as np
-from pytorch_tabnet.tab_model import TabNetClassifier
 from sklearn.metrics import accuracy_score
 
 from diquark.models.base import BaseModel
@@ -13,6 +12,13 @@ class TabNetModel(BaseModel):
         self.random_state = self.config.get("random_state", 42)
 
     def build(self, input_shape: int):
+        try:
+            from pytorch_tabnet.tab_model import TabNetClassifier
+        except ImportError:
+            raise Exception(
+                "`pytorch-tabnet` package not found; did you enable the `gpu` package feature?"
+            )
+
         self.model = TabNetClassifier(n_d=16, n_a=16, n_steps=5, seed=self.random_state)
 
     def train(
