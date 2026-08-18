@@ -23,6 +23,7 @@ dependencies = [
     "pyarrow>=24.0.0",
     "numpy>=2.5.1",
     "pandas>=3.0.5",
+    "typer>=0.27.1",
 ]
 
 [project.scripts]
