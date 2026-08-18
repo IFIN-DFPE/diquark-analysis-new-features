@@ -79,6 +79,9 @@ def main(
 
     ax.axhline(y=1, color="gray", linestyle="--")
 
+    ax.set_xlabel("Discriminator threshold $D$")
+    ax.set_ylabel("Yield")
+
     ax.grid()
     ax.legend()
 
