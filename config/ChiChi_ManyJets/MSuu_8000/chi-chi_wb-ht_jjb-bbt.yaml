@@ -1,0 +1,51 @@
+version: 1.0
+data:
+  total_luminosity: 3000
+
+  backgrounds_file: "background.yaml"
+  signal_file: "signal_wb-ht_jjb-bbt.yaml"
+
+cross_validation:
+  enabled: true
+  n_folds: 5
+
+feature_extraction:
+  n_jets: 32
+
+preprocessing:
+  scaler: "minmax"
+  test_size: 0.2
+  random_state: 13
+  oversample_signal: true
+
+models:
+  gradient_boosting:
+    n_estimators: 512
+    random_state: 17
+
+evaluation:
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - roc_auc
+    - average_precision
+  thresholds: [0.5, 0.6, 0.7, 0.8, 0.85, 0.875, 0.90, 0.925, 0.95]
+  use_real_event_percentiles: false
+
+visualization:
+  plots:
+    - roc_curve
+    - pr_curve
+    - feature_importances
+    - sig_bkg_metrics
+
+results:
+  directory: "results/ChiChi_ManyJets/MSuu_8000/wb-ht/jjb-bbt"
+  save_predictions: true
+  save_feature_importances: true
+
+logging:
+  file_path: "logs/experiment.log"
+  level: "INFO"

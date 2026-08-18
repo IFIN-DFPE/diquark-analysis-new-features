@@ -3,7 +3,7 @@ data:
   total_luminosity: 3000
 
   backgrounds_file: "background.yaml"
-  signal_file: "sig_ht-ht_bbt-bbt.yaml"
+  signal_file: "signal_ht-ht_bbt-bbt.yaml"
 
 cross_validation:
   enabled: true
@@ -19,10 +19,6 @@ preprocessing:
   oversample_signal: true
 
 models:
-  random_forest:
-    n_estimators: 512
-    random_state: 17
-
   gradient_boosting:
     n_estimators: 512
     random_state: 17

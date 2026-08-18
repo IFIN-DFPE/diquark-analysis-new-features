@@ -1,5 +1,7 @@
-import numpy as np
 import awkward as ak
+import numpy as np
+from numpy import float64
+from numpy.typing import NDArray
 
 from .feature_extractor import BaseFeatureExtractor
 
@@ -176,7 +178,7 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         }
 
     def compute_all(self, data: ak.Array) -> dict[str, np.ndarray]:
-        features = {}
+        features: dict[str, NDArray[float64]] = {}
 
         num_jets = self.jet_multiplicity(data)
         features["jet_multiplicity"] = num_jets

@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Mapping
 
-import uproot
 import awkward as ak
+import uproot
 
 from tqdm.contrib.concurrent import thread_map
 
@@ -33,7 +33,7 @@ class DataLoader:
     def read_jet_delphes(
         self, filename: str | Path, branches: list[str] | None = None
     ) -> ak.Array:
-        """Read a delphes output TTree from a ROOT file into an awkward array."""
+        """Read a Delphes output TTree from a ROOT file into an Awkward array."""
         if branches is None:
             branches = self.default_branches
 

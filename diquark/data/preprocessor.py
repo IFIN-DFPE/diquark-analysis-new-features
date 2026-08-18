@@ -92,7 +92,9 @@ class Preprocessor:
         if self.oversample_signal:
             df_train = self._oversample_signal(df_train)
             X_train = df_train.drop(["target", "Truth"], axis=1).values
+            X_test = X_test.values
             y_train = df_train["target"].values
+            y_test = y_test.values
 
         X_train_scaled = self.scale_features(X_train)
         X_test_scaled = self.scaler.transform(X_test)
