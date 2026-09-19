@@ -3,7 +3,7 @@ data:
   total_luminosity: 3000
 
   backgrounds_file: "background.yaml"
-  signal_file: "signal_ht-ht_bbt-bbt.yaml"
+  signal_file: "signal_zt-ht_jjt-bbt.yaml"
 
 cross_validation:
   enabled: true
@@ -42,7 +42,7 @@ visualization:
     - sig_bkg_metrics
 
 results:
-  directory: "results/ChiChi_ManyJets/MSuu_8000/ht-ht/bbt-bbt"
+  directory: "results/ChiChi_ManyJets/MSuu_7500/zt-ht_jjt-bbt"
   save_predictions: true
   save_feature_importances: true
 
