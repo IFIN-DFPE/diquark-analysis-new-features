@@ -1,0 +1,9 @@
+version: 1.0
+backgrounds:
+  combined_run_1:
+    file: "/data/adinu/systematics/multijets/JER_down/bkg/bkg_1.root"
+    cross_section: 3.939
+
+  combined_run_2:
+    file: "/data/adinu/systematics/multijets/JER_down/bkg/bkg_2.root"
+    cross_section: 3.940

@@ -1,0 +1,6 @@
+version: 1.0
+signal:
+  file: "/data/adinu/systematics/multijets/JES_down/sg/wbzt.root"
+  cross_section: 2.934E-03
+  chi_mass: 8000
+  suu_mass: 8000

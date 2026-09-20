@@ -1,0 +1,33 @@
+version: 1.0
+backgrounds:
+  combined_bkg1_part_1:
+    file: "/data/adinu/systematics/multijets/pileup_140/bkg/bkg_1.root"
+    cross_section: 3.939
+
+  combined_bkg1_part_2:
+    file: "/data/adinu/systematics/multijets/pileup_140/bkg/bkg_1_1.root"
+    cross_section: 3.939
+
+  combined_bkg1_part_3:
+    file: "/data/adinu/systematics/multijets/pileup_140/bkg/bkg_1_2.root"
+    cross_section: 3.939
+
+  combined_bkg1_part_4:
+    file: "/data/adinu/systematics/multijets/pileup_140/bkg/bkg_1_3.root"
+    cross_section: 3.939
+
+  combined_bkg2_part_1:
+    file: "/data/adinu/systematics/multijets/pileup_140/bkg/bkg_2.root"
+    cross_section: 3.940
+
+  combined_bkg2_part_2:
+    file: "/data/adinu/systematics/multijets/pileup_140/bkg/bkg_2_1.root"
+    cross_section: 3.940
+
+  combined_bkg2_part_3:
+    file: "/data/adinu/systematics/multijets/pileup_140/bkg/bkg_2_2.root"
+    cross_section: 3.940
+
+  combined_bkg2_part_4:
+    file: "/data/adinu/systematics/multijets/pileup_140/bkg/bkg_2_3.root"
+    cross_section: 3.940
