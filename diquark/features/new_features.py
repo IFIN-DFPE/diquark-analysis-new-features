@@ -18,15 +18,17 @@ def ak_batched(array: ak.Array, batch_size: int) -> Generator[ak.Array]:
 
 class NewFeatureExtractor(BaseFeatureExtractor):
     batch_size: int
+    batch_parallel_workers: int
     max_jets: int
     chi_mass: float
     suu_mass: float
 
     def __init__(self, max_jets: int, chi_mass: float, suu_mass: float) -> None:
+        self.batch_size = 8192
+        self.batch_parallel_workers = 8
         self.max_jets = max_jets
         self.chi_mass = chi_mass
         self.suu_mass = suu_mass
-        self.batch_size = 16384
         super().__init__(self._generate_feature_names())
 
     def _flattened_feature_names(self, name: str) -> list[str]:
@@ -318,7 +320,7 @@ class NewFeatureExtractor(BaseFeatureExtractor):
     def compute_all(self, data: ak.Array) -> dict[str, np.ndarray]:
         batches = ak_batched(data, self.batch_size)
 
-        with ProcessPoolExecutor(max_workers=8) as executor:
+        with ProcessPoolExecutor(max_workers=self.batch_parallel_workers) as executor:
             # executor.map handles queuing and returns results in order
             batch_features_list: list[dict[str, np.ndarray]] = list(
                 executor.map(self._compute_for_batch, batches)
