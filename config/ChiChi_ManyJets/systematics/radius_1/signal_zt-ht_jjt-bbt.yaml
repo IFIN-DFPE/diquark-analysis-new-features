@@ -1,6 +1,6 @@
 version: 1.0
 signal:
   file: "/data/adinu/systematics/multijets/radius_1/sg/ztht_jjt_bbt.root"
-  cross_section: 2.934E-03
-  chi_mass: 8000
+  cross_section: 8.111E-04
+  chi_mass: 2000
   suu_mass: 8000
