@@ -213,7 +213,7 @@ class Analysis:
         features = thread_map(
             self.feature_extractor.compute_all,
             data.values(),
-            max_workers=32,
+            max_workers=4,
             desc="Extracting features",
         )
 

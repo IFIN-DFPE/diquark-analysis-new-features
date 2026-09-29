@@ -59,7 +59,7 @@ def _launch_slurm_job(config_file_path: Path, skip_existing: bool) -> None:
     #SBATCH --nodes=1
     #SBATCH --cpus-per-task=120
     #SBATCH --time=01:00:00
-    #SBATCH --mem=320G
+    #SBATCH --mem=128G
     #SBATCH --job-name diquark_analysis_{config_name}
     #SBATCH --output={output_file_path}
     #SBATCH --error={output_file_path}.err

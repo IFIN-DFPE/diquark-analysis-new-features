@@ -1,3 +1,5 @@
+from collections.abc import Generator, Iterable
+
 import awkward as ak
 import numpy as np
 from numpy import float64
@@ -6,7 +8,15 @@ from numpy.typing import NDArray
 from .feature_extractor import BaseFeatureExtractor
 
 
+def ak_batched(array: ak.Array, batch_size: int) -> Generator[ak.Array]:
+    "Yields consecutive ak.Array slices of size at most `batch_size`"
+    total_len = len(array)
+    for i in range(0, total_len, batch_size):
+        yield array[i : i + batch_size]
+
+
 class NewFeatureExtractor(BaseFeatureExtractor):
+    batch_size: int
     max_jets: int
     chi_mass: float
     suu_mass: float
@@ -15,6 +25,7 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         self.max_jets = max_jets
         self.chi_mass = chi_mass
         self.suu_mass = suu_mass
+        self.batch_size = 16384
         super().__init__(self._generate_feature_names())
 
     def _flattened_feature_names(self, name: str) -> list[str]:
@@ -177,7 +188,7 @@ class NewFeatureExtractor(BaseFeatureExtractor):
             .filled(fill_value),
         }
 
-    def compute_all(self, data: ak.Array) -> dict[str, np.ndarray]:
+    def _compute_for_batch(self, data: ak.Array) -> dict[str, np.ndarray]:
         features: dict[str, NDArray[float64]] = {}
 
         num_jets = self.jet_multiplicity(data)
@@ -290,3 +301,25 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         features |= self.flatten_feature("chi2_third_component", chi2_third_component)
 
         return features
+
+    def _merge_features(
+        self, feature_batches: Iterable[dict[str, np.ndarray]]
+    ) -> dict[str, np.ndarray]:
+        feature_names = self._generate_feature_names()
+
+        features = {}
+        for feature_name in feature_names:
+            arrays = [batch[feature_name] for batch in feature_batches]
+            features[feature_name] = np.concatenate(arrays, axis=0)
+
+        return features
+
+    def compute_all(self, data: ak.Array) -> dict[str, np.ndarray]:
+        batch_features_list: list[dict[str, np.ndarray]] = []
+
+        for batch in ak_batched(data, self.batch_size):
+            batch_features = self._compute_for_batch(batch)
+
+            batch_features_list.append(batch_features)
+
+        return self._merge_features(batch_features_list)
