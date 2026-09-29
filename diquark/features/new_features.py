@@ -1,4 +1,5 @@
 from collections.abc import Generator, Iterable
+from concurrent.futures import ProcessPoolExecutor
 
 import awkward as ak
 import numpy as np
@@ -315,11 +316,12 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         return features
 
     def compute_all(self, data: ak.Array) -> dict[str, np.ndarray]:
-        batch_features_list: list[dict[str, np.ndarray]] = []
+        batches = ak_batched(data, self.batch_size)
 
-        for batch in ak_batched(data, self.batch_size):
-            batch_features = self._compute_for_batch(batch)
-
-            batch_features_list.append(batch_features)
+        with ProcessPoolExecutor(max_workers=8) as executor:
+            # executor.map handles queuing and returns results in order
+            batch_features_list: list[dict[str, np.ndarray]] = list(
+                executor.map(self._compute_for_batch, batches)
+            )
 
         return self._merge_features(batch_features_list)
