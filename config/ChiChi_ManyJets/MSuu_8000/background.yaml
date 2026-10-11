@@ -1,9 +1,5 @@
 version: 1.0
 backgrounds:
-  combined_run_1:
-    file: "/data/gmajeri/diquark-simulations/runs/diquark-many-jets/Suu_8TeV/data/background/all_1/Events/run_01/tag_1_delphes_events.root"
-    cross_section: 3.939
-
-  combined_run_2:
-    file: "/data/gmajeri/diquark-simulations/runs/diquark-many-jets/Suu_8TeV/data/background/all_2/Events/run_01/tag_1_delphes_events.root"
+  combined:
+    file: "/data/gmajeri/diquark-simulations/runs/diquark-many-jets/Suu_8TeV/data/background/background_run_1_and_run_2.root"
     cross_section: 3.940

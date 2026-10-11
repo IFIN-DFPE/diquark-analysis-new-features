@@ -1,9 +1,5 @@
 version: 1.0
 backgrounds:
-  combined_run_1:
-    file: "/data/adinu/systematics/multijets/both_down/bkg/bkg_1.root"
-    cross_section: 3.939
-
-  combined_run_2:
-    file: "/data/adinu/systematics/multijets/both_down/bkg/bkg_2.root"
+  combined:
+    file: "/data/gmajeri/diquark-simulations/runs/diquark-many-jets/systematics/both_down/background.root"
     cross_section: 3.940
