@@ -326,4 +326,7 @@ class NewFeatureExtractor(BaseFeatureExtractor):
                 executor.map(self._compute_for_batch, batches)
             )
 
+        if len(batch_features_list) == 0:
+            raise ValueError("No batches were processed. Check the input data.")
+
         return self._merge_features(batch_features_list)
