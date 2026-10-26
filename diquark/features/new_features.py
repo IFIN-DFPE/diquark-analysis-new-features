@@ -20,15 +20,31 @@ class NewFeatureExtractor(BaseFeatureExtractor):
     batch_size: int
     batch_parallel_workers: int
     max_jets: int
+    max_combination_jets: int
+    max_jet_eta: float | None
     chi_mass: float
     suu_mass: float
 
-    def __init__(self, max_jets: int, chi_mass: float, suu_mass: float) -> None:
-        self.batch_size = 8192
-        self.batch_parallel_workers = 8
-        self.max_jets = max_jets
-        self.chi_mass = chi_mass
-        self.suu_mass = suu_mass
+    def __init__(
+        self,
+        max_jets: int,
+        chi_mass: float,
+        suu_mass: float,
+        batch_size: int = 2048,
+        batch_parallel_workers: int = 8,
+        max_combination_jets: int | None = 12,
+        max_jet_eta: float | None = None,
+    ) -> None:
+        self.batch_size = int(batch_size)
+        self.batch_parallel_workers = int(batch_parallel_workers)
+        self.max_jets = int(max_jets)
+        if max_combination_jets is None:
+            self.max_combination_jets = self.max_jets
+        else:
+            self.max_combination_jets = min(self.max_jets, int(max_combination_jets))
+        self.max_jet_eta = float(max_jet_eta) if max_jet_eta is not None else None
+        self.chi_mass = float(chi_mass)
+        self.suu_mass = float(suu_mass)
         super().__init__(self._generate_feature_names())
 
     def _flattened_feature_names(self, name: str) -> list[str]:
@@ -173,7 +189,7 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         return np.nan_to_num(raw_vector_sum_pts)
 
     def flatten_feature(
-        self, name: str, data: ak.Array | np.ndarray, fill_value: int | float = -1
+        self, name: str, data: ak.Array | np.ndarray, fill_value: float = -1
     ) -> dict[str, np.ndarray]:
         return {
             f"{name}_sum": ak.sum(data, axis=-1).to_numpy(),
@@ -194,25 +210,32 @@ class NewFeatureExtractor(BaseFeatureExtractor):
     def _compute_for_batch(self, data: ak.Array) -> dict[str, np.ndarray]:
         features: dict[str, NDArray[float64]] = {}
 
-        num_jets = self.jet_multiplicity(data)
-        features["jet_multiplicity"] = num_jets
-
-        non_zero_jets_mask = num_jets > 0
-
-        # Extract jet 4-vector components
-        p_T = data["Jet/Jet.PT"]
         eta = data["Jet/Jet.Eta"]
-        phi = data["Jet/Jet.Phi"]
+        if self.max_jet_eta is not None:
+            eta_mask = np.abs(eta) <= self.max_jet_eta
+            p_T = data["Jet/Jet.PT"][eta_mask][:, : self.max_jets]
+            eta = eta[eta_mask][:, : self.max_jets]
+            phi = data["Jet/Jet.Phi"][eta_mask][:, : self.max_jets]
+            b_tag = data["Jet/Jet.BTag"][eta_mask][:, : self.max_jets]
+            mass = data["Jet/Jet.Mass"][eta_mask][:, : self.max_jets]
+            num_jets = ak.to_numpy(ak.num(p_T))
+        else:
+            p_T = data["Jet/Jet.PT"][:, : self.max_jets]
+            eta = eta[:, : self.max_jets]
+            phi = data["Jet/Jet.Phi"][:, : self.max_jets]
+            b_tag = data["Jet/Jet.BTag"][:, : self.max_jets]
+            mass = data["Jet/Jet.Mass"][:, : self.max_jets]
+            num_jets = self.jet_multiplicity(data)
+
+        features["jet_multiplicity"] = num_jets
 
         features |= self.flatten_feature("p_T", p_T)
         features |= self.flatten_feature("eta", eta)
         features |= self.flatten_feature("phi", phi)
-
-        b_tag = data["Jet/Jet.BTag"]
         features |= self.flatten_feature("b_tag", b_tag, fill_value=0)
-
-        mass = data["Jet/Jet.Mass"]
         features |= self.flatten_feature("mass", mass)
+
+        non_zero_jets_mask = num_jets > 0
 
         mass = self._pad_jet_array(mass)
 
@@ -264,13 +287,19 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         )
         features["combined_invariant_mass"] = combined_invariant_mass
 
-        m2j = self.n_jet_invariant_mass(p_x, p_y, p_z, energy, k=2)
-        m3j = self.n_jet_invariant_mass(p_x, p_y, p_z, energy, k=3)
-        m6j = self.n_jet_invariant_mass(p_x, p_y, p_z, energy, k=6)
+        # Restrict combinations to leading jets to control combinatorial explosion
+        p_x_comb = p_x[:, : self.max_combination_jets]
+        p_y_comb = p_y[:, : self.max_combination_jets]
+        p_z_comb = p_z[:, : self.max_combination_jets]
+        energy_comb = energy[:, : self.max_combination_jets]
 
-        vector_sum_p_T_2j = self.n_jet_vector_sum_pt(p_x, p_y, k=2)
-        vector_sum_p_T_3j = self.n_jet_vector_sum_pt(p_x, p_y, k=3)
-        vector_sum_p_T_6j = self.n_jet_vector_sum_pt(p_x, p_y, k=6)
+        m2j = self.n_jet_invariant_mass(p_x_comb, p_y_comb, p_z_comb, energy_comb, k=2)
+        m3j = self.n_jet_invariant_mass(p_x_comb, p_y_comb, p_z_comb, energy_comb, k=3)
+        m6j = self.n_jet_invariant_mass(p_x_comb, p_y_comb, p_z_comb, energy_comb, k=6)
+
+        vector_sum_p_T_2j = self.n_jet_vector_sum_pt(p_x_comb, p_y_comb, k=2)
+        vector_sum_p_T_3j = self.n_jet_vector_sum_pt(p_x_comb, p_y_comb, k=3)
+        vector_sum_p_T_6j = self.n_jet_vector_sum_pt(p_x_comb, p_y_comb, k=6)
 
         features |= self.flatten_feature("m2j", m2j)
         features |= self.flatten_feature("m3j", m3j)
@@ -283,7 +312,7 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         # Compute combined features
         features["n_jet_pairs_near_w_mass"] = ak.sum(
             (m2j >= 60) & (m2j <= 100), axis=-1
-        )
+        ).to_numpy()
 
         # Compute \chi^2 score with known-mass particles
         m_W = 80.3692

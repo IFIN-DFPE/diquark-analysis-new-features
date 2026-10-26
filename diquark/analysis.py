@@ -103,10 +103,24 @@ class Analysis:
         feature_set = self.config.get("feature_extraction.feature_set", "new")
 
         if feature_set == "new":
+            batch_parallel_workers = self.config.get(
+                "feature_extraction.batch_parallel_workers",
+                self.config.get("feature_extraction.num_workers", 8),
+            )
+            batch_size = self.config.get("feature_extraction.batch_size", 2048)
+            max_combination_jets = self.config.get(
+                "feature_extraction.max_combination_jets",
+                self.config.get("feature_extraction.n_combination_jets", 12),
+            )
+            max_jet_eta = self.config.get("feature_extraction.max_jet_eta", None)
             self.feature_extractor = NewFeatureExtractor(
                 max_jets=self.config.get_required("feature_extraction.n_jets"),
                 chi_mass=signal_config.get_required("signal.chi_mass"),
                 suu_mass=signal_config.get_required("signal.suu_mass"),
+                batch_size=batch_size,
+                batch_parallel_workers=batch_parallel_workers,
+                max_combination_jets=max_combination_jets,
+                max_jet_eta=max_jet_eta,
             )
         elif feature_set == "old":
             self.feature_extractor = OldFeatureExtractor(
@@ -210,10 +224,15 @@ class Analysis:
     def extract_features(self, data):
         self.logger.info("Extracting features...")
 
+        dataset_parallel_workers = self.config.get(
+            "feature_extraction.dataset_parallel_workers",
+            self.config.get("feature_extraction.max_workers", 4),
+        )
+
         features = thread_map(
             self.feature_extractor.compute_all,
             data.values(),
-            max_workers=4,
+            max_workers=dataset_parallel_workers,
             desc="Extracting features",
         )
 
