@@ -1,34 +1,42 @@
 from abc import ABC, abstractmethod
+from typing import Any
+
 import numpy as np
-from typing import Any, Dict
+
 
 class BaseModel(ABC):
-    def __init__(self, name: str, config: Dict[str, Any]):
+    model_extension: str = "pkl"
+
+    def __init__(self, name: str, config: dict[str, Any]) -> None:
         self.name = name
         self.config = config
         self.model: Any = None
 
-    @abstractmethod
-    def build(self, input_shape: int):
-        """Build the model architecture."""
-        pass
+    def model_filename(self, model_name: str) -> str:
+        return f"{model_name}_model.{self.model_extension}"
 
     @abstractmethod
-    def train(self, X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray):
-        """Train the model."""
-        pass
+    def build(self, input_shape: int) -> None:
+        "Build the model architecture."
+
+    @abstractmethod
+    def train(
+        self,
+        X_train: np.ndarray,
+        y_train: np.ndarray,
+        X_val: np.ndarray,
+        y_val: np.ndarray,
+    ) -> None:
+        "Train the model."
 
     @abstractmethod
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """Make predictions using the trained model."""
-        pass
+        "Make predictions using the trained model."
 
     @abstractmethod
-    def save(self, path: str):
-        """Save the trained model."""
-        pass
+    def save(self, path: str) -> None:
+        "Save the trained model."
 
     @abstractmethod
-    def load(self, path: str):
-        """Load a trained model."""
-        pass
+    def load(self, path: str) -> None:
+        "Load a trained model."

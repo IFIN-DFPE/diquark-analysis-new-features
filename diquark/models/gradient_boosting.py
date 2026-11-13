@@ -1,10 +1,14 @@
+from typing import Any
+
 import numpy as np
 import xgboost as xgb
+
 from diquark.models.base import BaseModel
-from typing import Any
 
 
 class GradientBoostingModel(BaseModel):
+    model_extension: str = "json"
+
     def __init__(self, config: dict[str, Any]):
         super().__init__("GradientBoosting", config)
         self.n_estimators = self.config.get("n_estimators", 100)
@@ -45,6 +49,9 @@ class GradientBoostingModel(BaseModel):
         self.model.save_model(path)
 
     def load(self, path: str):
+        if self.model is None:
+            self.build(0)
+        assert self.model is not None, "Model must be built before loading."
         self.model.load_model(path)
 
     def feature_importances(self) -> np.ndarray:

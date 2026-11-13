@@ -7,6 +7,8 @@ from diquark.models.base import BaseModel
 
 
 class TabNetModel(BaseModel):
+    model_extension: str = "zip"
+
     def __init__(self, config: dict[str, Any]):
         super().__init__("TabNet", config)
         self.random_state = self.config.get("random_state", 42)
@@ -40,6 +42,9 @@ class TabNetModel(BaseModel):
         self.model.save_model(path)
 
     def load(self, path: str):
+        if self.model is None:
+            self.build(0)
+        assert self.model is not None, "Model must be built before loading."
         self.model.load_model(path)
 
     def feature_importances(self) -> np.ndarray:

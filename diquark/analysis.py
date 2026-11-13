@@ -122,6 +122,7 @@ class Analysis:
                 batch_parallel_workers=batch_parallel_workers,
                 max_combination_jets=max_combination_jets,
                 max_jet_eta=max_jet_eta,
+                min_jet_pt=min_jet_pt,
             )
         elif feature_set == "old":
             self.feature_extractor = OldFeatureExtractor(
@@ -131,6 +132,18 @@ class Analysis:
             raise Exception(f"Unknown/unsupported feature set: '{feature_set}'")
 
         self.preprocessor = Preprocessor(self.config.get("preprocessing", {}))
+
+        pretrained_dir = (
+            self.config.get("models.pretrained_results_dir", None)
+            or self.config.get("evaluation.pretrained_results_dir", None)
+            or self.config.get("results.pretrained_directory", None)
+        )
+        self.pretrained_results_dir: Path | None = (
+            Path(pretrained_dir) if pretrained_dir else None
+        )
+        self.freeze_thresholds: bool = bool(
+            self.config.get("evaluation.freeze_thresholds", False)
+        )
 
         self.models = {
             # 'neural_network': NeuralNetworkModel(self.config.get('models.neural_network', {})) if self.config.get('models.neural_network', None) else None,
@@ -166,6 +179,26 @@ class Analysis:
         self.logger.info("Analysis completed.")
 
     def run_single_fold(self, features):
+        if self.pretrained_results_dir is not None:
+            df = self.preprocessor.create_dataframe(features)
+            feature_cols = [col for col in df.columns if col not in ["Truth", "target"]]
+            _, _, _, y_test, _, df_test = self.preprocessor.split_data(df, feature_cols)
+            scaler_dir = (
+                self.pretrained_results_dir
+                if (self.pretrained_results_dir / "scaler.pkl").exists()
+                else self.pretrained_results_dir / "fold_1"
+            )
+            scaler = self.results_manager.load_pickle(
+                "scaler.pkl", custom_dir=scaler_dir
+            )
+            X_test = scaler.transform(df_test[feature_cols].to_numpy())
+            results = self.evaluate_pretrained_models(
+                X_test, y_test, df_test, pretrained_dir=scaler_dir
+            )
+            self.visualize_results(results, df_test)
+            self.save_results(results, df_test, save_models=False)
+            return
+
         # Preprocess data
         X_train, X_test, y_train, y_test, df_train, df_test = self.preprocess_data(
             features
@@ -180,7 +213,7 @@ class Analysis:
         self.visualize_results(results, df_test)
 
         # Save results
-        self.save_results(results, df_test)
+        self.save_results(results, df_test, save_models=True)
 
     def run_cross_validation(self, features):
         df = self.preprocessor.create_dataframe(features)
@@ -190,8 +223,13 @@ class Analysis:
         skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True, random_state=42)
 
         all_fold_results = []
+        oof_predictions = {
+            model_name: np.empty(len(df), dtype=np.float64)
+            for model_name, model in self.models.items()
+            if model is not None
+        }
 
-        for fold, (train_index, test_index) in enumerate(skf.split(X, y), 1):
+        for fold, (train_index, test_index) in enumerate(skf.split(X, df["Truth"]), 1):
             self.logger.info(f"Processing fold {fold}")
 
             fold_dir = self.results_manager.create_subdir(f"fold_{fold}")
@@ -201,22 +239,46 @@ class Analysis:
             df_train = df.iloc[train_index]
             df_test = df.iloc[test_index]
 
-            X_train, X_test, y_train, y_test, df_train, df_test = (
-                self.preprocessor.prepare_fold_data(
-                    X_train, X_test, y_train, y_test, df_train, df_test
+            if self.pretrained_results_dir is not None:
+                pretrained_fold_dir = self.pretrained_results_dir / f"fold_{fold}"
+                if not pretrained_fold_dir.exists():
+                    raise FileNotFoundError(
+                        f"Pretrained fold directory not found: '{pretrained_fold_dir}'. "
+                        f"Please run the nominal configuration first to generate pretrained models."
+                    )
+                scaler = self.results_manager.load_pickle(
+                    "scaler.pkl", custom_dir=pretrained_fold_dir
                 )
-            )
+                X_test_scaled = scaler.transform(np.asarray(X_test))
+                y_test_arr = np.asarray(y_test)
+                results = self.evaluate_pretrained_models(
+                    X_test_scaled,
+                    y_test_arr,
+                    df_test,
+                    pretrained_dir=pretrained_fold_dir,
+                )
+                save_models = False
+            else:
+                X_train, X_test, y_train, y_test, df_train, df_test = (
+                    self.preprocessor.prepare_fold_data(
+                        X_train, X_test, y_train, y_test, df_train, df_test
+                    )
+                )
 
-            results = self.train_and_evaluate_models(
-                X_train, X_test, y_train, y_test, df_test
-            )
+                results = self.train_and_evaluate_models(
+                    X_train, X_test, y_train, y_test, df_test
+                )
+                save_models = True
+
+            for model_name, model_results in results.items():
+                oof_predictions[model_name][test_index] = model_results["predictions"]
 
             self.visualize_results(results, df_test, fold_dir)
-            self.save_results(results, df_test, fold_dir)
+            self.save_results(results, df_test, fold_dir, save_models=save_models)
 
             all_fold_results.append(results)
 
-        self.summarize_cross_validation_results(all_fold_results)
+        self.summarize_cross_validation_results(all_fold_results, df, oof_predictions)
 
     def load_data(self):
         self.logger.info("Loading data...")
@@ -249,6 +311,103 @@ class Analysis:
         self.logger.info("Preprocessing data...")
         return self.preprocessor.prepare_data(features)
 
+    def evaluate_predictions(
+        self,
+        y_true,
+        y_pred,
+        df_eval,
+        fixed_thresholds: dict[str, float] | None = None,
+    ):
+        total_luminosity = self.config.get("data.total_luminosity", 3000)
+        truth_series = df_eval["Truth"]
+        truth_counts = truth_series.value_counts().to_dict()
+        sample_weights = np.array(
+            [
+                total_luminosity * self.cross_sections[label] / truth_counts[label]
+                for label in truth_series
+            ],
+            dtype=np.float64,
+        )
+
+        thresholds = self.config.get(
+            "evaluation.thresholds",
+            [0.2, 0.5, 0.8, 0.90, 0.925, 0.95, 0.96, 0.97, 0.98, 0.99],
+        )
+        use_real_event_percentiles = self.config.get(
+            "evaluation.use_real_event_percentiles", False
+        )
+
+        metrics = calculate_metrics(
+            y_true, y_pred, sample_weights, thresholds, use_real_event_percentiles
+        )
+        sig_bkg_metrics = calculate_signal_background_metrics(
+            y_true,
+            y_pred,
+            thresholds,
+            sample_weights,
+            total_luminosity,
+            self.cross_sections,
+            use_real_event_percentiles,
+            fixed_thresholds=fixed_thresholds,
+        )
+        score_thresholds = {
+            str(cut): float(thr)
+            for cut, thr in zip(thresholds, sig_bkg_metrics["thresholds"])
+        }
+
+        cuts = thresholds
+        df_counts, df_raw_counts, df_uncertainties = calculate_counts_for_score_cuts(
+            y_true,
+            y_pred,
+            df_eval["combined_invariant_mass"],
+            truth_series,
+            self.cross_sections,
+            total_luminosity,
+            cuts,
+            use_real_event_percentiles,
+            fixed_thresholds=fixed_thresholds,
+        )
+        df_counts_summary = self.format_counts_summary(df_counts, df_uncertainties)
+
+        return {
+            "metrics": metrics,
+            "sig_bkg_metrics": sig_bkg_metrics,
+            "score_thresholds": score_thresholds,
+            "predictions": y_pred,
+            "sample_weights": sample_weights,
+            "counts": df_counts,
+            "raw_counts": df_raw_counts,
+            "counts_uncertainties": df_uncertainties,
+            "counts_summary": df_counts_summary,
+        }
+
+    def format_counts_summary(
+        self, df_counts: pd.DataFrame, df_uncertainties: pd.DataFrame
+    ) -> pd.DataFrame:
+        numeric_cols = [col for col in df_counts.columns if col != "Process"]
+        result_df = pd.DataFrame(
+            index=df_counts.index, columns=[*numeric_cols, "Process"]
+        )
+        for idx in df_counts.index:
+            for col in numeric_cols:
+                mean_value = df_counts.loc[idx, col]
+                std_value = df_uncertainties.loc[idx, col]
+                result_df.loc[idx, col] = self.format_value(mean_value, std_value)
+            result_df.loc[idx, "Process"] = df_counts.loc[idx, "Process"]
+        return result_df
+
+    def _load_fixed_thresholds(
+        self, model_name: str, pretrained_dir: Path
+    ) -> dict[str, float] | None:
+        if not self.freeze_thresholds:
+            return None
+        thresholds_file = pretrained_dir / f"{model_name}_score_thresholds.json"
+        if thresholds_file.exists():
+            return self.results_manager.load_json(
+                f"{model_name}_score_thresholds.json", custom_dir=pretrained_dir
+            )
+        return None
+
     def train_and_evaluate_models(self, X_train, X_test, y_train, y_test, df_test):
         results = {}
         for model_name, model in self.models.items():
@@ -259,54 +418,30 @@ class Analysis:
             model.train(X_train, y_train, X_test, y_test)
             y_pred = model.predict(X_test)
 
-            sample_weights = np.array(
-                [self.cross_sections[label] for label in df_test["Truth"]]
-            )
-            # Ensure we don't have any `None`s
-            assert sample_weights.dtype == np.float64
+            results[model_name] = self.evaluate_predictions(y_test, y_pred, df_test)
+            if hasattr(model, "feature_importances"):
+                results[model_name]["feature_importances"] = model.feature_importances()
+        return results
 
-            thresholds = self.config.get(
-                "evaluation.thresholds",
-                [0.2, 0.5, 0.8, 0.90, 0.925, 0.95, 0.96, 0.97, 0.98, 0.99],
-            )
-            use_real_event_percentiles = self.config.get(
-                "evaluation.use_real_event_percentiles", False
-            )
-            total_luminosity = self.config.get("data.total_luminosity", 3000)
+    def evaluate_pretrained_models(self, X_test, y_test, df_test, pretrained_dir: Path):
+        results = {}
+        for model_name, model in self.models.items():
+            if model is None:
+                continue
+            model_path = pretrained_dir / model.model_filename(model_name)
+            if not model_path.exists():
+                raise FileNotFoundError(
+                    f"Pretrained model file not found: '{model_path}'. "
+                    f"Please run the nominal configuration first to generate pretrained models."
+                )
+            self.logger.info(f"Loading pretrained {model_name} from {model_path}...")
+            model.load(str(model_path))
+            y_pred = model.predict(X_test)
 
-            metrics = calculate_metrics(
-                y_test, y_pred, sample_weights, thresholds, use_real_event_percentiles
+            fixed_thresholds = self._load_fixed_thresholds(model_name, pretrained_dir)
+            results[model_name] = self.evaluate_predictions(
+                y_test, y_pred, df_test, fixed_thresholds=fixed_thresholds
             )
-            sig_bkg_metrics = calculate_signal_background_metrics(
-                y_test,
-                y_pred,
-                thresholds,
-                sample_weights,
-                total_luminosity,
-                self.cross_sections,
-                use_real_event_percentiles,
-            )
-
-            cuts = thresholds
-            df_counts, df_raw_counts = calculate_counts_for_score_cuts(
-                y_test,
-                y_pred,
-                df_test["combined_invariant_mass"],
-                df_test["Truth"],
-                self.cross_sections,
-                total_luminosity,
-                cuts,
-                use_real_event_percentiles,
-            )
-
-            results[model_name] = {
-                "metrics": metrics,
-                "sig_bkg_metrics": sig_bkg_metrics,
-                "predictions": y_pred,
-                "sample_weights": sample_weights,
-                "counts": df_counts,
-                "raw_counts": df_raw_counts,
-            }
             if hasattr(model, "feature_importances"):
                 results[model_name]["feature_importances"] = model.feature_importances()
         return results
@@ -329,10 +464,40 @@ class Analysis:
             for plot_name, fig in plots.items():
                 fig.write_image(f"{results_dir}/{model_name}_{plot_name}.pdf")
 
-    def save_results(self, results, df_test, custom_dir=None):
-        results_dir = custom_dir if custom_dir else self.results_manager.results_dir
+    def save_results(
+        self,
+        results,
+        df_test,
+        custom_dir=None,
+        save_test_set: bool = True,
+        save_models: bool = False,
+    ):
+        results_dir = Path(
+            custom_dir if custom_dir else self.results_manager.results_dir
+        )
         self.logger.info(f"Saving results to {results_dir}...")
+        if save_models and self.config.get("results.save_models", True):
+            self.results_manager.save_pickle(
+                self.preprocessor.scaler, "scaler.pkl", custom_dir=results_dir
+            )
+
         for model_name, model_results in results.items():
+            if (
+                save_models
+                and self.config.get("results.save_models", True)
+                and self.models.get(model_name) is not None
+            ):
+                model_obj = self.models[model_name]
+                assert model_obj is not None
+                model_obj.save(str(results_dir / model_obj.model_filename(model_name)))
+
+            if "score_thresholds" in model_results:
+                self.results_manager.save_json(
+                    model_results["score_thresholds"],
+                    f"{model_name}_score_thresholds.json",
+                    custom_dir=results_dir,
+                )
+
             self.results_manager.save_json(
                 model_results["metrics"],
                 f"{model_name}_metrics.json",
@@ -353,6 +518,12 @@ class Analysis:
                 f"{model_name}_raw_counts.csv",
                 custom_dir=results_dir,
             )
+            if "counts_summary" in model_results:
+                self.results_manager.save_dataframe(
+                    model_results["counts_summary"],
+                    f"{model_name}_counts_summary.csv",
+                    custom_dir=results_dir,
+                )
 
             if self.config.get("results.save_predictions", False):
                 self.results_manager.save_numpy(
@@ -389,63 +560,59 @@ class Analysis:
                     custom_dir=results_dir,
                 )
 
-        # Save test set
-        self.results_manager.save_dataframe(
-            df_test, "test_set.parquet", format="parquet", custom_dir=results_dir
-        )
+        if save_test_set:
+            # Save test set
+            self.results_manager.save_dataframe(
+                df_test,
+                "test_set.parquet",
+                format="parquet",
+                custom_dir=results_dir,
+            )
 
-    def summarize_cross_validation_results(self, all_fold_results):
-        for model_name in self.models.keys():
+    def summarize_cross_validation_results(
+        self, all_fold_results, df: pd.DataFrame, oof_predictions: dict[str, np.ndarray]
+    ):
+        self.logger.info(
+            "Evaluating pooled out-of-fold predictions across all folds..."
+        )
+        y_true = df["target"].to_numpy()
+        pooled_results = {}
+
+        for model_name in self.models:
             if self.models[model_name] is None:
                 continue
 
-            dfs = [
-                fold_result[model_name]["counts"] for fold_result in all_fold_results
+            y_pred_oof = oof_predictions[model_name]
+            fixed_thresholds = (
+                self._load_fixed_thresholds(model_name, self.pretrained_results_dir)
+                if self.pretrained_results_dir is not None
+                else None
+            )
+            model_pooled_results = self.evaluate_predictions(
+                y_true, y_pred_oof, df, fixed_thresholds=fixed_thresholds
+            )
+
+            fold_importances = [
+                fold_result[model_name]["feature_importances"]
+                for fold_result in all_fold_results
+                if "feature_importances" in fold_result[model_name]
             ]
-            combined_df = pd.concat(
-                dfs, axis=0, keys=[f"Fold {i}" for i in range(1, self.n_folds + 1)]
-            )
-
-            # Separate numeric and non-numeric columns
-            numeric_cols = combined_df.select_dtypes(include=[np.number]).columns
-            non_numeric_cols = combined_df.select_dtypes(exclude=[np.number]).columns
-
-            # Calculate mean and std for numeric columns
-            mean_df = combined_df[numeric_cols].groupby(level=1).mean()
-            std_df = combined_df[numeric_cols].groupby(level=1).std()
-
-            # For non-numeric columns, use the most common value
-            for col in non_numeric_cols:
-                mean_df[col] = (
-                    combined_df[col]
-                    .groupby(level=1)
-                    .agg(lambda x: x.value_counts().index[0])
+            if fold_importances:
+                model_pooled_results["feature_importances"] = np.mean(
+                    fold_importances, axis=0
                 )
-                std_df[col] = ""  # Empty string for std of non-numeric columns
 
-            result_df = pd.DataFrame(index=mean_df.index, columns=mean_df.columns)
+            pooled_results[model_name] = model_pooled_results
 
-            for col in mean_df.columns:
-                for idx in mean_df.index:
-                    mean_value = mean_df.loc[idx, col]
-                    std_value = std_df.loc[idx, col]
-                    if col in numeric_cols:
-                        result_df.loc[idx, col] = self.format_value(
-                            mean_value, std_value
-                        )
-                    else:
-                        result_df.loc[idx, col] = mean_value
-
-            self.results_manager.save_dataframe(
-                result_df, f"{model_name}_counts_summary.csv"
-            )
+        self.visualize_results(pooled_results, df)
+        self.save_results(pooled_results, df, save_test_set=False, save_models=False)
 
     def format_value(self, mean, std):
         if mean == 0 and std == 0:
             return "0.000e+00 ± 0.000e+00"
 
         if np.isinf(mean) or np.isinf(std):
-            return f"{mean}"
+            return f"{mean} ± {std}"
 
         if abs(mean) > 1e-10:
             mean_magnitude = int(np.floor(np.log10(abs(mean))))
@@ -455,7 +622,7 @@ class Analysis:
         if abs(std) > 1e-10:
             std_magnitude = int(np.floor(np.log10(abs(std))))
         else:
-            std_magnitude = 0
+            std_magnitude = mean_magnitude
 
         precision = max(0, mean_magnitude - std_magnitude + 3)
 

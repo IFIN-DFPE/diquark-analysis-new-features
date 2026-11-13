@@ -1,12 +1,13 @@
+from typing import Any, cast
+
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split
-from typing import Dict, List, Tuple, Any
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 class Preprocessor:
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self.scaler_type = config.get("scaler", "minmax")
         self.test_size = config.get("test_size", 0.2)
@@ -21,7 +22,7 @@ class Preprocessor:
             raise ValueError(f"Unknown scaler type: {self.scaler_type}")
 
     def create_dataframe(
-        self, features: Dict[str, Dict[str, np.ndarray]]
+        self, features: dict[str, dict[str, np.ndarray]]
     ) -> pd.DataFrame:
         """Creates a pandas DataFrame from the extracted features."""
         df_list = []
@@ -39,8 +40,8 @@ class Preprocessor:
         return self.scaler.fit_transform(X)
 
     def split_data(
-        self, df: pd.DataFrame, feature_cols: List[str]
-    ) -> Tuple[
+        self, df: pd.DataFrame, feature_cols: list[str]
+    ) -> tuple[
         np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame, pd.DataFrame
     ]:
         """Splits the data into training and test sets."""
@@ -52,17 +53,26 @@ class Preprocessor:
             y,
             df,
             test_size=self.test_size,
-            stratify=y,
+            stratify=df["Truth"],
             random_state=self.random_state,
         )
+
+        X_train = cast(np.ndarray, X_train)
+        X_test = cast(np.ndarray, X_test)
+        y_train = cast(np.ndarray, y_train)
+        y_test = cast(np.ndarray, y_test)
+        df_train = cast(pd.DataFrame, df_train)
+        df_test = cast(pd.DataFrame, df_test)
 
         if self.oversample_signal:
             df_train = self._oversample_signal(df_train)
             X_train = df_train[feature_cols].values
             y_train = df_train["target"].values
+            y_train = cast(np.ndarray, y_train)
 
         X_train_scaled = self.scale_features(X_train)
         X_test_scaled = self.scaler.transform(X_test)
+        X_test_scaled = cast(np.ndarray, X_test_scaled)
 
         return X_train_scaled, X_test_scaled, y_train, y_test, df_train, df_test
 
@@ -79,8 +89,8 @@ class Preprocessor:
         return df_oversampled.sample(frac=1, random_state=self.random_state)  # Shuffle
 
     def prepare_data(
-        self, features: Dict[str, Dict[str, np.ndarray]]
-    ) -> Tuple[
+        self, features: dict[str, dict[str, np.ndarray]]
+    ) -> tuple[
         np.ndarray, np.ndarray, np.ndarray, np.ndarray, pd.DataFrame, pd.DataFrame
     ]:
         """Prepares the data for model training."""
@@ -92,9 +102,13 @@ class Preprocessor:
         if self.oversample_signal:
             df_train = self._oversample_signal(df_train)
             X_train = df_train.drop(["target", "Truth"], axis=1).values
-            X_test = X_test.values
             y_train = df_train["target"].values
-            y_test = y_test.values
+        else:
+            X_train = np.asarray(X_train)
+            y_train = np.asarray(y_train)
+
+        X_test = np.asarray(X_test)
+        y_test = np.asarray(y_test)
 
         X_train_scaled = self.scale_features(X_train)
         X_test_scaled = self.scaler.transform(X_test)

@@ -1,11 +1,15 @@
+from typing import Any
+
+import joblib
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-import joblib
+
 from diquark.models.base import BaseModel
-from typing import Any
 
 
 class RandomForestModel(BaseModel):
+    model_extension: str = "joblib"
+
     def __init__(self, config: dict[str, Any]):
         super().__init__("RandomForest", config)
         self.n_estimators = self.config.get("n_estimators", 100)

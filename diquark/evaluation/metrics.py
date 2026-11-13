@@ -198,11 +198,14 @@ def calculate_signal_background_metrics(
     total_luminosity,
     cross_sections,
     use_real_event_percentiles,
+    fixed_thresholds: dict[str, float] | None = None,
 ):
     signal = y_true == 1
     background = y_true == 0
 
-    if use_real_event_percentiles:
+    if fixed_thresholds is not None:
+        thresholds = np.array([float(fixed_thresholds[str(t)]) for t in thresholds])
+    elif use_real_event_percentiles:
         # Sort predictions and weights together
         sorted_indices = np.argsort(y_pred)
         sorted_pred = y_pred[sorted_indices]
@@ -266,44 +269,60 @@ def calculate_counts_for_score_cuts(
     total_luminosity,
     cuts,
     use_real_event_percentiles,
-) -> tuple[DataFrame, DataFrame]:
+    fixed_thresholds: dict[str, float] | None = None,
+) -> tuple[DataFrame, DataFrame, DataFrame]:
     results = {}
+    uncertainties = {}
     raw_counts = {}
 
-    if use_real_event_percentiles:
-        weights = np.array([cross_sections[t] for t in truth])
+    truth_array = np.asarray(truth)
+    keys = np.unique(truth_array)
+    truth_masks = {key: truth_array == key for key in keys}
+    truth_counts = {key: int(truth_masks[key].sum()) for key in keys}
+    process_weights = {
+        key: total_luminosity * cross_sections[key] / truth_counts[key]
+        for key in keys
+    }
+
+    if fixed_thresholds is None and use_real_event_percentiles:
+        weights = np.array([process_weights[t] for t in truth_array])
         sorted_indices = np.argsort(y_pred)
         sorted_pred = y_pred[sorted_indices]
         sorted_weights = weights[sorted_indices]
         cumulative_weights = np.cumsum(sorted_weights)
         total_weight = cumulative_weights[-1]
 
-    keys = np.unique(truth)
-    truth_masks = {key: truth == key for key in keys}
-    truth_counts = {key: truth_masks[key].sum() for key in keys}
-
     for cut in cuts:
-        if use_real_event_percentiles:
+        if fixed_thresholds is not None and str(cut) in fixed_thresholds:
+            threshold = float(fixed_thresholds[str(cut)])
+        elif use_real_event_percentiles:
             threshold = sorted_pred[
                 np.searchsorted(cumulative_weights / total_weight, cut)
             ]
         else:
             threshold = np.quantile(y_pred, cut)
 
-        scores = {}
-        for key in keys:
-            mask = truth_masks[key] & (y_pred > threshold)
-            scores[key] = mnj[mask]
-
-        counts = {
-            k: len(v) * total_luminosity * cross_sections[k] / truth_counts[k]
-            for k, v in scores.items()
+        passed_mask = y_pred > threshold
+        cut_raw_counts = {
+            k: int((truth_masks[k] & passed_mask).sum()) for k in keys
         }
-        results[cut] = counts
+        counts = {
+            k: cut_raw_counts[k] * process_weights[k] for k in keys
+        }
+        cut_uncertainties = {
+            k: np.sqrt(
+                cut_raw_counts[k] * (1.0 - cut_raw_counts[k] / truth_counts[k])
+            )
+            * process_weights[k]
+            for k in keys
+        }
 
-        raw_counts[cut] = {k: len(v) for k, v in scores.items()}
+        results[cut] = counts
+        uncertainties[cut] = cut_uncertainties
+        raw_counts[cut] = cut_raw_counts
 
     df_counts = pd.DataFrame(results)
+    df_uncertainties = pd.DataFrame(uncertainties)
     df_raw_counts = pd.DataFrame(raw_counts)
 
     # Ensure 'SIG:Suu' is the last row before summary rows
@@ -311,24 +330,51 @@ def calculate_counts_for_score_cuts(
         sig_row = df_counts.loc["SIG:Suu"]
         df_counts = pd.concat([df_counts.drop("SIG:Suu"), sig_row.to_frame().T])
 
-    bkg_counts = df_counts.loc[
-        [idx for idx in df_counts.index if idx != "SIG:Suu"]
-    ].sum()
+        sig_unc_row = df_uncertainties.loc["SIG:Suu"]
+        df_uncertainties = pd.concat(
+            [df_uncertainties.drop("SIG:Suu"), sig_unc_row.to_frame().T]
+        )
+
+    bkg_indices = [idx for idx in df_counts.index if idx != "SIG:Suu"]
+    bkg_counts = df_counts.loc[bkg_indices].sum()
+    bkg_uncertainties = np.sqrt((df_uncertainties.loc[bkg_indices] ** 2).sum())
+
     sig_counts = (
         df_counts.loc["SIG:Suu"]
         if "SIG:Suu" in df_counts.index
-        else pd.Series(0, index=df_counts.columns)
+        else pd.Series(0.0, index=df_counts.columns)
     )
+    sig_uncertainties = (
+        df_uncertainties.loc["SIG:Suu"]
+        if "SIG:Suu" in df_uncertainties.index
+        else pd.Series(0.0, index=df_uncertainties.columns)
+    )
+
     s_over_b = sig_counts / bkg_counts
+    s_over_b_uncertainties = pd.Series(
+        np.where(
+            bkg_counts > 0,
+            np.sqrt(sig_uncertainties**2 + (s_over_b * bkg_uncertainties) ** 2)
+            / bkg_counts,
+            np.where(sig_counts > 0, np.inf, 0.0),
+        ),
+        index=df_counts.columns,
+    )
 
     df_counts.loc["BKG:sum"] = bkg_counts
     df_counts.loc["S/B"] = s_over_b
+
+    df_uncertainties.loc["BKG:sum"] = bkg_uncertainties
+    df_uncertainties.loc["S/B"] = s_over_b_uncertainties
 
     # Add row names as the first column
     df_counts = df_counts.reset_index()
     df_counts = df_counts.rename(columns={"index": "Process"})
 
+    df_uncertainties = df_uncertainties.reset_index()
+    df_uncertainties = df_uncertainties.rename(columns={"index": "Process"})
+
     df_raw_counts = df_raw_counts.reset_index()
     df_raw_counts = df_raw_counts.rename(columns={"index": "Process"})
 
-    return df_counts, df_raw_counts
+    return df_counts, df_raw_counts, df_uncertainties

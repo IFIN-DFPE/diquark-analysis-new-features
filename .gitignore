@@ -27,10 +27,13 @@ combined_codebase.py
 *.parquet
 *.data.joblib
 models/**/plots
+results/
 *.log
 *.csv
 *.json
 *.npy
+*.pkl
+*.feather
 
 # Plots
 *.png
