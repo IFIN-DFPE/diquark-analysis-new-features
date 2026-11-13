@@ -34,17 +34,29 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         batch_parallel_workers: int = 8,
         max_combination_jets: int | None = 12,
         max_jet_eta: float | None = None,
+        min_jet_pt: float | None = None,
     ) -> None:
         self.batch_size = int(batch_size)
         self.batch_parallel_workers = int(batch_parallel_workers)
+
+        # Maximum number of jets to consider for feature extraction
         self.max_jets = int(max_jets)
+
+        # Max number of jets to consider for combinations
+        # (e.g., invariant mass calculations)
         if max_combination_jets is None:
             self.max_combination_jets = self.max_jets
         else:
             self.max_combination_jets = min(self.max_jets, int(max_combination_jets))
+
+        # Thresholds for pre-selection cuts
         self.max_jet_eta = float(max_jet_eta) if max_jet_eta is not None else None
+        self.min_jet_pt = float(min_jet_pt) if min_jet_pt is not None else None
+
+        # Model parameters used for chi-squared formulas
         self.chi_mass = float(chi_mass)
         self.suu_mass = float(suu_mass)
+
         super().__init__(self._generate_feature_names())
 
     def _flattened_feature_names(self, name: str) -> list[str]:
@@ -211,16 +223,26 @@ class NewFeatureExtractor(BaseFeatureExtractor):
         features: dict[str, NDArray[float64]] = {}
 
         eta = data["Jet/Jet.Eta"]
+        pt = data["Jet/Jet.PT"]
+
+        # Apply pre-selection cuts based on jet variables, if specified
+
+        jet_mask = None
         if self.max_jet_eta is not None:
-            eta_mask = np.abs(eta) <= self.max_jet_eta
-            p_T = data["Jet/Jet.PT"][eta_mask][:, : self.max_jets]
-            eta = eta[eta_mask][:, : self.max_jets]
-            phi = data["Jet/Jet.Phi"][eta_mask][:, : self.max_jets]
-            b_tag = data["Jet/Jet.BTag"][eta_mask][:, : self.max_jets]
-            mass = data["Jet/Jet.Mass"][eta_mask][:, : self.max_jets]
+            jet_mask = np.abs(eta) <= self.max_jet_eta
+        if self.min_jet_pt is not None:
+            pt_mask = pt >= self.min_jet_pt
+            jet_mask = pt_mask if jet_mask is None else (jet_mask & pt_mask)
+
+        if jet_mask is not None:
+            p_T = pt[jet_mask][:, : self.max_jets]
+            eta = eta[jet_mask][:, : self.max_jets]
+            phi = data["Jet/Jet.Phi"][jet_mask][:, : self.max_jets]
+            b_tag = data["Jet/Jet.BTag"][jet_mask][:, : self.max_jets]
+            mass = data["Jet/Jet.Mass"][jet_mask][:, : self.max_jets]
             num_jets = ak.to_numpy(ak.num(p_T))
         else:
-            p_T = data["Jet/Jet.PT"][:, : self.max_jets]
+            p_T = pt[:, : self.max_jets]
             eta = eta[:, : self.max_jets]
             phi = data["Jet/Jet.Phi"][:, : self.max_jets]
             b_tag = data["Jet/Jet.BTag"][:, : self.max_jets]

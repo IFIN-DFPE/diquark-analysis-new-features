@@ -113,6 +113,7 @@ class Analysis:
                 self.config.get("feature_extraction.n_combination_jets", 12),
             )
             max_jet_eta = self.config.get("feature_extraction.max_jet_eta", None)
+            min_jet_pt = self.config.get("feature_extraction.min_jet_pt", None)
             self.feature_extractor = NewFeatureExtractor(
                 max_jets=self.config.get_required("feature_extraction.n_jets"),
                 chi_mass=signal_config.get_required("signal.chi_mass"),
