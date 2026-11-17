@@ -1,15 +1,14 @@
-from pandas.core.frame import DataFrame
-
 import numpy as np
 import pandas as pd
+from pandas.core.frame import DataFrame
 from sklearn.metrics import (
     accuracy_score,
+    auc,
+    average_precision_score,
+    f1_score,
     precision_score,
     recall_score,
-    f1_score,
     roc_auc_score,
-    average_precision_score,
-    auc,
 )
 
 
@@ -280,8 +279,7 @@ def calculate_counts_for_score_cuts(
     truth_masks = {key: truth_array == key for key in keys}
     truth_counts = {key: int(truth_masks[key].sum()) for key in keys}
     process_weights = {
-        key: total_luminosity * cross_sections[key] / truth_counts[key]
-        for key in keys
+        key: total_luminosity * cross_sections[key] / truth_counts[key] for key in keys
     }
 
     if fixed_thresholds is None and use_real_event_percentiles:
@@ -303,16 +301,10 @@ def calculate_counts_for_score_cuts(
             threshold = np.quantile(y_pred, cut)
 
         passed_mask = y_pred > threshold
-        cut_raw_counts = {
-            k: int((truth_masks[k] & passed_mask).sum()) for k in keys
-        }
-        counts = {
-            k: cut_raw_counts[k] * process_weights[k] for k in keys
-        }
+        cut_raw_counts = {k: int((truth_masks[k] & passed_mask).sum()) for k in keys}
+        counts = {k: cut_raw_counts[k] * process_weights[k] for k in keys}
         cut_uncertainties = {
-            k: np.sqrt(
-                cut_raw_counts[k] * (1.0 - cut_raw_counts[k] / truth_counts[k])
-            )
+            k: np.sqrt(cut_raw_counts[k] * (1.0 - cut_raw_counts[k] / truth_counts[k]))
             * process_weights[k]
             for k in keys
         }
