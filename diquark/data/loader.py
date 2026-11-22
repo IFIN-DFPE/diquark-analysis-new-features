@@ -1,9 +1,8 @@
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping
 
 import awkward as ak
 import uproot
-
 from tqdm.contrib.concurrent import thread_map
 
 

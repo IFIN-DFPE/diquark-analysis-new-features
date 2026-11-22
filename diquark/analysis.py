@@ -32,7 +32,7 @@ from diquark.evaluation.visualizations import plot_results
 class Analysis:
     feature_extractor: BaseFeatureExtractor
 
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str | Path):
         self.config = ConfigManager(config_path)
         self.logger = setup_logger(
             "experiment_logger",
