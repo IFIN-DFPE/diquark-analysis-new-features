@@ -57,15 +57,17 @@ def _launch_slurm_job(config_file_path: Path, skip_existing: bool) -> None:
     #!/usr/bin/env bash
 
     #SBATCH --nodes=1
-    #SBATCH --cpus-per-task=120
+    #SBATCH --cpus-per-task=256
     #SBATCH --time=01:00:00
-    #SBATCH --mem=128G
+    #SBATCH --mem=1T
     #SBATCH --job-name diquark_analysis_{config_name}
+    #SBATCH --account=acc-c-fiz-26-001
+    #SBATCH --partition=cpu-wide
     #SBATCH --output={output_file_path}
     #SBATCH --error={output_file_path}.err
 
     # Activate virtual environment
-    source /data/gmajeri/diquark-analysis/.venv/bin/activate
+    source /mnt/home/gabrielmajeri/Projects/Research/HEP/diquark-analysis/.venv/bin/activate
 
     set -ex
 
@@ -115,8 +117,8 @@ def _dry_run(config_files: Iterable[Path]) -> None:
         print(f'  Command: python diquark/analysis.py -c "{config_file_path}"')
         print(f"  Output: {output_file_path}")
         print("  Slurm resources:")
-        print("    • CPUs: 120")
-        print("    • Memory: 320GB")
+        print("    • CPUs: 256")
+        print("    • Memory: 1TB")
         print("    • Time limit: 01:00:00")
         print(f"    • Job name: diquark_analysis_{config_name}")
         print()

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=120
+#SBATCH --cpus-per-task=256
 #SBATCH --output slurm-%j.log
 
 source .venv/bin/activate
