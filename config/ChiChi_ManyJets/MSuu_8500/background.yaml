@@ -1,5 +1,17 @@
 version: 1.0
 backgrounds:
-  combined_run:
-    file: "/data/gmajeri/diquark-simulations/runs/diquark-many-jets/Suu_8.5TeV/data/background/background_run_1_and_run_2.root"
-    cross_section: 1.145
+  diboson:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.5TeV/data/background/diboson/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 2.050E-05
+
+  qcd:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.5TeV/data/background/qcd/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 9.506E-01
+
+  single_boson:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.5TeV/data/background/single_boson/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 2.319E-02
+
+  ttbar:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.5TeV/data/background/ttbar/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 4.414E-04

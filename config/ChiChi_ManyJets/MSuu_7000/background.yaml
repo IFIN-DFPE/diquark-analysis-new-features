@@ -1,5 +1,17 @@
 version: 1.0
 backgrounds:
-  combined:
-    file: "/data/gmajeri/diquark-simulations/runs/diquark-many-jets/Suu_7TeV/data/background/background_run_1_and_run_2.root"
-    cross_section: 37.43
+  diboson:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_7TeV/data/background/diboson/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 5.778E-04
+
+  qcd:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_7TeV/data/background/qcd/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 3.203E+01
+
+  single_boson:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_7TeV/data/background/single_boson/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 6.699E-01
+
+  ttbar:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_7TeV/data/background/ttbar/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 1.659E-02

@@ -1,5 +1,0 @@
-version: 1.0
-backgrounds:
-  combined:
-    file: "/data/gmajeri/diquark-simulations/runs/diquark-many-jets/systematics/both_up/background.root"
-    cross_section: 3.94

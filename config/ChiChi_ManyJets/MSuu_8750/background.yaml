@@ -1,0 +1,17 @@
+version: 1.0
+backgrounds:
+  diboson:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.75TeV/data/background/diboson/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 1.131E-05
+
+  qcd:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.75TeV/data/background/qcd/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 4.927E-01
+
+  single_boson:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.75TeV/data/background/single_boson/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 1.229E-02
+
+  ttbar:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.75TeV/data/background/ttbar/Events/run_01/tag_1_delphes_events.root"
+    cross_section: 2.256E-04

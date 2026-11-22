@@ -5,11 +5,13 @@ data:
   signal_file: "signal_ht-ht_bbt-bbt.yaml"
 
 cross_validation:
-  enabled: true
-  n_folds: 5
+  enabled: false
+  n_folds: 1
 
 feature_extraction:
   n_jets: 32
+  max_jet_eta: 2.5
+  min_jet_pt: 100.0
 
 preprocessing:
   scaler: "minmax"
@@ -19,7 +21,7 @@ preprocessing:
 
 models:
   gradient_boosting:
-    n_estimators: 512
+    n_estimators: 1024
     random_state: 17
 
 evaluation:

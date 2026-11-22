@@ -1,0 +1,6 @@
+version: 1.0
+signal:
+  file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/simulations/diquark-many-jets/Suu_8.25TeV/data/signal/Suu_chichi_htht_bbt_bbt/Events/run_01/tag_1_delphes_events.root"
+  cross_section: 6.137E-04
+  chi_mass: 2000
+  suu_mass: 8250
