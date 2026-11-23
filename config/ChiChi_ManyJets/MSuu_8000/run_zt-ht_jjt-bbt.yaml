@@ -5,8 +5,8 @@ data:
   signal_file: "signal_zt-ht_jjt-bbt.yaml"
 
 cross_validation:
-  enabled: false
-  n_folds: 1
+  enabled: true
+  n_folds: 5
 
 feature_extraction:
   n_jets: 32
