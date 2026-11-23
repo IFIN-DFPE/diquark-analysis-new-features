@@ -24,6 +24,7 @@ dependencies = [
     "pandas-stubs>=3.0.3.260530",
     "typer>=0.27.1",
     "shap>=0.54.1",
+    "optuna>=5.1.0",
 ]
 
 [project.scripts]
