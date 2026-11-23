@@ -1,6 +1,6 @@
 version: 1.0
 signal:
-  file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/systematics/multijets/both_down/sg/htht.root"
+  file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/systematics/multijets/jer_jes_new/both_down/sg/htht.root"
   cross_section: 1.085E-03
   chi_mass: 2000
   suu_mass: 8000

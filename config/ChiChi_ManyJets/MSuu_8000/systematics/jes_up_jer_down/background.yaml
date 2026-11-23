@@ -1,0 +1,17 @@
+version: 1.0
+backgrounds:
+  diboson:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/systematics/multijets/jer_jes_new/jes_up_jer_down/bkg/diboson.root"
+    cross_section: 6.418E-05
+
+  qcd:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/systematics/multijets/jer_jes_new/jes_up_jer_down/bkg/qcd.root"
+    cross_section: 5.283
+
+  single_boson:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/systematics/multijets/jer_jes_new/jes_up_jer_down/bkg/single_boson.root"
+    cross_section: 7.68E-02
+
+  ttbar:
+    file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/systematics/multijets/jer_jes_new/jes_up_jer_down/bkg/ttbar.root"
+    cross_section: 1.581E-03

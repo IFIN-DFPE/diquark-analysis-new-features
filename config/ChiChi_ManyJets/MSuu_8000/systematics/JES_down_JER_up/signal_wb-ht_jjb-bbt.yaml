@@ -1,6 +1,0 @@
-version: 1.0
-signal:
-  file: "/mnt/projects/acc-c-fiz-26-001/ultraheavy-diquark/systematics/multijets/jes_down_jer_up/sg/wbht.root"
-  cross_section: 2.935E-03
-  chi_mass: 2000
-  suu_mass: 8000
