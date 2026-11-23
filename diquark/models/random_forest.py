@@ -33,12 +33,18 @@ class RandomForestModel(BaseModel):
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
+        X_val: np.ndarray | None,
+        y_val: np.ndarray | None,
+        sample_weight: np.ndarray | None = None,
+        val_sample_weight: np.ndarray | None = None,
     ):
-        self.model.fit(X_train, y_train)
+        self.model.fit(X_train, y_train, sample_weight=sample_weight)
         train_score = self.model.score(X_train, y_train)
-        val_score = self.model.score(X_val, y_val)
+        val_score = (
+            self.model.score(X_val, y_val)
+            if X_val is not None and y_val is not None
+            else None
+        )
         return {"train_score": train_score, "val_score": val_score}
 
     def predict(self, X: np.ndarray) -> np.ndarray:

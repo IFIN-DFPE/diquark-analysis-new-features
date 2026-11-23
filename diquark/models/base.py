@@ -24,9 +24,11 @@ class BaseModel(ABC):
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
-    ) -> None:
+        X_val: np.ndarray | None,
+        y_val: np.ndarray | None,
+        sample_weight: np.ndarray | None = None,
+        val_sample_weight: np.ndarray | None = None,
+    ) -> Any:
         "Train the model."
 
     @abstractmethod

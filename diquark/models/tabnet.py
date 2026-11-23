@@ -27,12 +27,23 @@ class TabNetModel(BaseModel):
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
+        X_val: np.ndarray | None,
+        y_val: np.ndarray | None,
+        sample_weight: np.ndarray | None = None,
+        val_sample_weight: np.ndarray | None = None,
     ):
-        self.model.fit(X_train, y_train, eval_set=[(X_val, y_val)])
+        fit_kwargs: dict[str, Any] = {}
+        if X_val is not None and y_val is not None:
+            fit_kwargs["eval_set"] = [(X_val, y_val)]
+        if sample_weight is not None:
+            fit_kwargs["weights"] = sample_weight
+        self.model.fit(X_train, y_train, **fit_kwargs)
         train_score = accuracy_score(y_train, self.model.predict(X_train))
-        val_score = accuracy_score(y_val, self.model.predict(X_val))
+        val_score = (
+            accuracy_score(y_val, self.model.predict(X_val))
+            if X_val is not None and y_val is not None
+            else None
+        )
         return {"train_score": train_score, "val_score": val_score}
 
     def predict(self, X: np.ndarray) -> np.ndarray:

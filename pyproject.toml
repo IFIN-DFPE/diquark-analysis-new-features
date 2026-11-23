@@ -17,14 +17,12 @@ dependencies = [
     "scikit-learn>=1.9,<2",
     "xgboost>=3.3.0",
     "matplotlib>=3.10,<4",
-    "kaleido>=1,<2",
     "joblib>=1.5.3",
     "pyarrow>=24.0.0",
     "numpy>=2.5.1",
     "pandas>=3.0.5",
     "pandas-stubs>=3.0.3.260530",
     "typer>=0.27.1",
-    "plotly>=6.9.0",
     "shap>=0.54.1",
 ]
 

@@ -1,39 +1,52 @@
 import argparse
-from pathlib import Path
 import random
-from tqdm.contrib.concurrent import thread_map
+from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
+from tqdm.contrib.concurrent import thread_map
+
 from diquark.config.config_manager import ConfigManager
-from diquark.utils.logger import setup_logger
-from diquark.utils.results_manager import ResultsManager
-from diquark.data.loader import DataLoader
-from diquark.features import (
-    BaseFeatureExtractor,
-    NewFeatureExtractor,
-    OldFeatureExtractor,
+from diquark.data.feature_cache import (
+    FeatureCache,
+    compute_feature_cache_key,
+    resolve_dataset_spec,
 )
+from diquark.data.loader import DataLoader
 from diquark.data.preprocessor import Preprocessor
+from diquark.evaluation.metrics import (
+    calculate_counts_for_score_cuts,
+    calculate_metrics,
+    calculate_signal_background_metrics,
+)
+from diquark.evaluation.tuning_metrics import compute_training_weights
+from diquark.evaluation.visualizations import plot_results
+from diquark.features import BaseFeatureExtractor
+from diquark.models.gradient_boosting import GradientBoostingModel
 
 # from diquark.models.neural_network import NeuralNetworkModel
 from diquark.models.random_forest import RandomForestModel
-from diquark.models.gradient_boosting import GradientBoostingModel
 from diquark.models.tabnet import TabNetModel
-from diquark.evaluation.metrics import (
-    calculate_metrics,
-    calculate_signal_background_metrics,
-    calculate_counts_for_score_cuts,
+from diquark.utils.logger import setup_logger
+from diquark.utils.results_manager import ResultsManager
+
+_SUPPORTED_TRAINING_WEIGHT_KEYS = frozenset(
+    {"mode", "alpha", "balance_classes", "signal_weight_ratio", "apply_to_eval_set"}
 )
-from diquark.evaluation.visualizations import plot_results
 
 
 class Analysis:
     feature_extractor: BaseFeatureExtractor
 
     def __init__(self, config_path: str | Path):
-        self.config = ConfigManager(config_path)
+        print("Reading config file...")
+        print("Loading backgrounds config file...")
+        print("Loading signal config file...")
+        spec = resolve_dataset_spec(config_path)
+
+        self.config: ConfigManager = spec["config"]
         self.logger = setup_logger(
             "experiment_logger",
             self.config.get("logging.file_path", "logs/experiment.log"),
@@ -43,95 +56,49 @@ class Analysis:
             self.config.get("results.directory", "results")
         )
 
-        print("Reading config file...")
-        config_file_dir = Path(config_path).parent
-
-        # Load backgrounds config file
-        print("Loading backgrounds config file...")
-        backgrounds_config_file = Path(
-            self.config.get_required("data.backgrounds_file")
-        )
-        backgrounds_config_file_path = (
-            backgrounds_config_file
-            if backgrounds_config_file.is_absolute()
-            else config_file_dir / backgrounds_config_file
-        )
-        backgrounds_config = ConfigManager(backgrounds_config_file_path)
-
-        backgrounds: dict[str, object] = backgrounds_config.get("backgrounds", {})
-        background_path_dict: dict[str, Path] = {}
-        background_cross_sections: dict[str, float] = {}
-
-        for key, data in backgrounds.items():
-            assert isinstance(data, dict), "'backgrounds' should be an object/mapping"
-            file_path = Path(data["file"])
-            if not file_path.exists():
-                raise Exception(f"Could not find background file at path '{file_path}'")
-
-            dict_key = f"BKG:{key}"
-            background_path_dict[dict_key] = file_path
-            background_cross_sections[dict_key] = float(data["cross_section"])
-
-        # Load signal config file
-        print("Loading signal config file...")
-        signal_config_file = Path(self.config.get_required("data.signal_file"))
-        backgrounds_config_file_path = (
-            signal_config_file
-            if signal_config_file.is_absolute()
-            else config_file_dir / signal_config_file
-        )
-        signal_config = ConfigManager(backgrounds_config_file_path)
-
-        signal_file = Path(signal_config.get_required("signal.file"))
-        signal_cross_section = float(signal_config.get_required("signal.cross_section"))
-        self.cross_sections = background_cross_sections | {
-            "SIG:Suu": signal_cross_section
-        }
-
-        path_dict = background_path_dict | {"SIG:Suu": signal_file}
-        assert set(self.cross_sections.keys()) == set(path_dict.keys())
-
+        self.cross_sections: dict[str, float] = spec["cross_sections"]
+        self.path_dict: dict[str, Path] = spec["path_dict"]
         self.data_loader = DataLoader(
-            path_dict,
-            index_start=self.config.get("data.index_start", 0),
-            index_stop=self.config.get("data.index_stop", None),
+            self.path_dict,
+            index_start=spec["index_start"],
+            index_stop=spec["index_stop"],
         )
 
         self.use_cross_validation = self.config.get("cross_validation.enabled", False)
         self.n_folds = self.config.get("cross_validation.n_folds", 1)
+        self.cv_random_state = int(self.config.get("cross_validation.random_state", 42))
 
-        feature_set = self.config.get("feature_extraction.feature_set", "new")
-
-        if feature_set == "new":
-            batch_parallel_workers = self.config.get(
-                "feature_extraction.batch_parallel_workers",
-                self.config.get("feature_extraction.num_workers", 8),
-            )
-            batch_size = self.config.get("feature_extraction.batch_size", 2048)
-            max_combination_jets = self.config.get(
-                "feature_extraction.max_combination_jets",
-                self.config.get("feature_extraction.n_combination_jets", 12),
-            )
-            max_jet_eta = self.config.get("feature_extraction.max_jet_eta", None)
-            min_jet_pt = self.config.get("feature_extraction.min_jet_pt", None)
-            self.feature_extractor = NewFeatureExtractor(
-                max_jets=self.config.get_required("feature_extraction.n_jets"),
-                chi_mass=signal_config.get_required("signal.chi_mass"),
-                suu_mass=signal_config.get_required("signal.suu_mass"),
-                batch_size=batch_size,
-                batch_parallel_workers=batch_parallel_workers,
-                max_combination_jets=max_combination_jets,
-                max_jet_eta=max_jet_eta,
-                min_jet_pt=min_jet_pt,
-            )
-        elif feature_set == "old":
-            self.feature_extractor = OldFeatureExtractor(
-                max_jets=self.config.get_required("feature_extraction.n_jets")
-            )
-        else:
-            raise Exception(f"Unknown/unsupported feature set: '{feature_set}'")
+        self.feature_extractor = spec["feature_extractor"]
+        self.cache_dir: Path | None = spec["cache_dir"]
+        self._cache_fe_cfg: dict[str, object] = spec["cache_fe_cfg"]
+        self._cache_label: str = spec["label"]
 
         self.preprocessor = Preprocessor(self.config.get("preprocessing", {}))
+
+        raw_tw_cfg = self.config.get("training_weights", {}) or {}
+        if not isinstance(raw_tw_cfg, dict):
+            raise TypeError("'training_weights' config section must be a mapping.")
+        unknown_tw_keys = set(raw_tw_cfg.keys()) - _SUPPORTED_TRAINING_WEIGHT_KEYS
+        if unknown_tw_keys:
+            raise ValueError(
+                f"Unknown training_weights config key(s): {sorted(unknown_tw_keys)}"
+            )
+        self.weight_mode = str(raw_tw_cfg.get("mode", "none"))
+        self.weight_alpha = float(raw_tw_cfg.get("alpha", 1.0))
+        self.weight_balance_classes = bool(raw_tw_cfg.get("balance_classes", True))
+        self.weight_signal_ratio = float(raw_tw_cfg.get("signal_weight_ratio", 1.0))
+        self.apply_weights_to_eval_set = bool(
+            raw_tw_cfg.get("apply_to_eval_set", True)
+        )
+        # Validate training_weights parameters early
+        compute_training_weights(
+            np.empty(0, dtype=str),
+            self.cross_sections,
+            mode=self.weight_mode,
+            alpha=self.weight_alpha,
+            balance_classes=self.weight_balance_classes,
+            signal_weight_ratio=self.weight_signal_ratio,
+        )
 
         pretrained_dir = (
             self.config.get("models.pretrained_results_dir", None)
@@ -162,27 +129,114 @@ class Analysis:
             else None,
         }
 
+        if (
+            self.weight_mode != "none"
+            and self.weight_balance_classes
+            and self.preprocessor.oversample_signal
+        ):
+            self.logger.warning(
+                "training_weights.mode=%r with balance_classes=True is enabled alongside "
+                "preprocessing.oversample_signal=True; consider setting oversample_signal: false "
+                "to avoid redundant signal row duplication.",
+                self.weight_mode,
+            )
+
+        gb_model = self.models.get("gradient_boosting")
+        if (
+            isinstance(gb_model, GradientBoostingModel)
+            and self.weight_mode != "none"
+            and self.weight_balance_classes
+            and gb_model.scale_pos_weight != 1.0
+        ):
+            self.logger.warning(
+                "Both training_weights (balance_classes=True) and gradient_boosting.scale_pos_weight=%s "
+                "are set; this will double-scale the signal class.",
+                gb_model.scale_pos_weight,
+            )
+
+    def _compute_training_weights(self, truth) -> np.ndarray | None:
+        return compute_training_weights(
+            truth,
+            self.cross_sections,
+            mode=self.weight_mode,
+            alpha=self.weight_alpha,
+            balance_classes=self.weight_balance_classes,
+            signal_weight_ratio=self.weight_signal_ratio,
+        )
+
+    def get_feature_dataframe(self) -> pd.DataFrame:
+        """Load cached feature DataFrame if available, else load ROOT data and extract."""
+        cache: FeatureCache | None = None
+        cache_key: str | None = None
+        if self.cache_dir is not None:
+            cache = FeatureCache(self.cache_dir)
+            cache_key = compute_feature_cache_key(
+                self.path_dict,
+                self.data_loader.index_start,
+                self.data_loader.index_stop,
+                self._cache_fe_cfg,
+                self.feature_extractor.feature_names,
+            )
+            df_cached = cache.load(self._cache_label, cache_key)
+            if df_cached is not None:
+                self.logger.info(
+                    "Loaded extracted features from cache: %s",
+                    cache.cache_path(self._cache_label, cache_key),
+                )
+                return df_cached
+
+        data = self.load_data()
+        features = self.extract_features(data)
+        df = self.preprocessor.create_dataframe(features)
+
+        if cache is not None and cache_key is not None:
+            saved_path = cache.save(
+                df,
+                self._cache_label,
+                cache_key,
+                metadata={
+                    "cache_key": cache_key,
+                    "label": self._cache_label,
+                    "n_rows": len(df),
+                    "n_features": len(self.feature_extractor.feature_names),
+                    "truth_counts": {
+                        str(k): int(v) for k, v in df["Truth"].value_counts().items()
+                    },
+                    "feature_extraction": self._cache_fe_cfg,
+                },
+            )
+            self.logger.info("Saved extracted features to cache: %s", saved_path)
+
+        return df
+
     def run(self):
         self.logger.info("Starting analysis...")
 
-        # Load data
-        data = self.load_data()
-
-        # Extract features
-        features = self.extract_features(data)
+        df = self.get_feature_dataframe()
 
         if self.use_cross_validation:
-            self.run_cross_validation(features)
+            self.run_cross_validation(df)
         else:
-            self.run_single_fold(features)
+            self.run_single_fold(df)
 
         self.logger.info("Analysis completed.")
 
-    def run_single_fold(self, features):
+    def _to_dataframe(
+        self, features_or_df: pd.DataFrame | dict[str, dict[str, np.ndarray]]
+    ) -> pd.DataFrame:
+        if isinstance(features_or_df, pd.DataFrame):
+            return features_or_df
+        return self.preprocessor.create_dataframe(features_or_df)
+
+    def run_single_fold(
+        self, features: pd.DataFrame | dict[str, dict[str, np.ndarray]]
+    ):
+        df = self._to_dataframe(features)
+        feature_cols = [col for col in df.columns if col not in ["Truth", "target"]]
+
         if self.pretrained_results_dir is not None:
-            df = self.preprocessor.create_dataframe(features)
-            feature_cols = [col for col in df.columns if col not in ["Truth", "target"]]
-            _, _, _, y_test, _, df_test = self.preprocessor.split_data(df, feature_cols)
+            _, df_test = self.preprocessor.split_train_test_df(df)
+            y_test = df_test["target"].to_numpy()
             scaler_dir = (
                 self.pretrained_results_dir
                 if (self.pretrained_results_dir / "scaler.pkl").exists()
@@ -199,28 +253,58 @@ class Analysis:
             self.save_results(results, df_test, save_models=False)
             return
 
-        # Preprocess data
-        X_train, X_test, y_train, y_test, df_train, df_test = self.preprocess_data(
-            features
+        self.logger.info("Preprocessing data...")
+        df_train_full, df_test = self.preprocessor.split_train_test_df(df)
+        df_fit, df_val = self.preprocessor.split_train_val_df(df_train_full)
+        prepared = self.preprocessor.prepare_split_arrays(
+            df_fit, df_test, feature_cols, df_val=df_val
         )
+
+        sample_weight = self._compute_training_weights(prepared["df_train"]["Truth"])
+        if df_val is not None:
+            X_val, y_val = prepared["X_val"], prepared["y_val"]
+            val_sample_weight = (
+                self._compute_training_weights(prepared["df_val"]["Truth"])
+                if self.apply_weights_to_eval_set
+                else None
+            )
+        else:
+            X_val, y_val = prepared["X_test"], prepared["y_test"]
+            val_sample_weight = (
+                self._compute_training_weights(prepared["df_test"]["Truth"])
+                if (self.apply_weights_to_eval_set and self.weight_mode != "none")
+                else None
+            )
 
         # Train and evaluate models
         results = self.train_and_evaluate_models(
-            X_train, X_test, y_train, y_test, df_test
+            prepared["X_train"],
+            prepared["X_test"],
+            prepared["y_train"],
+            prepared["y_test"],
+            prepared["df_test"],
+            X_val=X_val,
+            y_val=y_val,
+            sample_weight=sample_weight,
+            val_sample_weight=val_sample_weight,
         )
 
         # Visualize results
-        self.visualize_results(results, df_test)
+        self.visualize_results(results, prepared["df_test"])
 
         # Save results
-        self.save_results(results, df_test, save_models=True)
+        self.save_results(results, prepared["df_test"], save_models=True)
 
-    def run_cross_validation(self, features):
-        df = self.preprocessor.create_dataframe(features)
-        X = df.drop(["target", "Truth"], axis=1)
-        y = df["target"]
+    def run_cross_validation(
+        self, features: pd.DataFrame | dict[str, dict[str, np.ndarray]]
+    ):
+        df = self._to_dataframe(features)
+        feature_cols = [col for col in df.columns if col not in ["Truth", "target"]]
+        X = df[feature_cols]
 
-        skf = StratifiedKFold(n_splits=self.n_folds, shuffle=True, random_state=42)
+        skf = StratifiedKFold(
+            n_splits=self.n_folds, shuffle=True, random_state=self.cv_random_state
+        )
 
         all_fold_results = []
         oof_predictions = {
@@ -234,8 +318,6 @@ class Analysis:
 
             fold_dir = self.results_manager.create_subdir(f"fold_{fold}")
 
-            X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-            y_train, y_test = y.iloc[train_index], y.iloc[test_index]
             df_train = df.iloc[train_index]
             df_test = df.iloc[test_index]
 
@@ -249,8 +331,8 @@ class Analysis:
                 scaler = self.results_manager.load_pickle(
                     "scaler.pkl", custom_dir=pretrained_fold_dir
                 )
-                X_test_scaled = scaler.transform(np.asarray(X_test))
-                y_test_arr = np.asarray(y_test)
+                X_test_scaled = scaler.transform(df_test[feature_cols].to_numpy())
+                y_test_arr = df_test["target"].to_numpy()
                 results = self.evaluate_pretrained_models(
                     X_test_scaled,
                     y_test_arr,
@@ -259,14 +341,40 @@ class Analysis:
                 )
                 save_models = False
             else:
-                X_train, X_test, y_train, y_test, df_train, df_test = (
-                    self.preprocessor.prepare_fold_data(
-                        X_train, X_test, y_train, y_test, df_train, df_test
-                    )
+                df_fit, df_val = self.preprocessor.split_train_val_df(
+                    df_train, random_state=self.preprocessor.random_state + fold
                 )
+                prepared = self.preprocessor.prepare_split_arrays(
+                    df_fit, df_test, feature_cols, df_val=df_val
+                )
+                sample_weight = self._compute_training_weights(
+                    prepared["df_train"]["Truth"]
+                )
+                if df_val is not None:
+                    X_val, y_val = prepared["X_val"], prepared["y_val"]
+                    val_sample_weight = (
+                        self._compute_training_weights(prepared["df_val"]["Truth"])
+                        if self.apply_weights_to_eval_set
+                        else None
+                    )
+                else:
+                    X_val, y_val = prepared["X_test"], prepared["y_test"]
+                    val_sample_weight = (
+                        self._compute_training_weights(prepared["df_test"]["Truth"])
+                        if (self.apply_weights_to_eval_set and self.weight_mode != "none")
+                        else None
+                    )
 
                 results = self.train_and_evaluate_models(
-                    X_train, X_test, y_train, y_test, df_test
+                    prepared["X_train"],
+                    prepared["X_test"],
+                    prepared["y_train"],
+                    prepared["y_test"],
+                    prepared["df_test"],
+                    X_val=X_val,
+                    y_val=y_val,
+                    sample_weight=sample_weight,
+                    val_sample_weight=val_sample_weight,
                 )
                 save_models = True
 
@@ -408,14 +516,34 @@ class Analysis:
             )
         return None
 
-    def train_and_evaluate_models(self, X_train, X_test, y_train, y_test, df_test):
+    def train_and_evaluate_models(
+        self,
+        X_train,
+        X_test,
+        y_train,
+        y_test,
+        df_test,
+        X_val=None,
+        y_val=None,
+        sample_weight=None,
+        val_sample_weight=None,
+    ):
+        eval_X = X_test if X_val is None else X_val
+        eval_y = y_test if y_val is None else y_val
         results = {}
         for model_name, model in self.models.items():
             if model is None:
                 continue
             self.logger.info(f"Training and evaluating {model_name}...")
             model.build(X_train.shape[1])
-            model.train(X_train, y_train, X_test, y_test)
+            model.train(
+                X_train,
+                y_train,
+                eval_X,
+                eval_y,
+                sample_weight=sample_weight,
+                val_sample_weight=val_sample_weight,
+            )
             y_pred = model.predict(X_test)
 
             results[model_name] = self.evaluate_predictions(y_test, y_pred, df_test)
@@ -447,22 +575,30 @@ class Analysis:
         return results
 
     def visualize_results(self, results, df_test, custom_dir=None):
-        self.logger.info("Visualizing results...")
         plot_types = self.config.get("visualization.plots", [])
-        results_dir = (
-            custom_dir
-            if custom_dir
-            else self.config.get("results.directory", "results")
+        if not plot_types:
+            return
+        self.logger.info("Visualizing results...")
+        results_dir = Path(
+            custom_dir if custom_dir else self.results_manager.results_dir
+        )
+        results_dir.mkdir(parents=True, exist_ok=True)
+        use_real_percentiles = bool(
+            self.config.get("evaluation.use_real_event_percentiles", True)
         )
         for model_name, model_results in results.items():
             plots = plot_results(
                 model_results,
                 df_test,
                 plot_types,
-                self.config.get("evaluation.use_real_event_percentiles", True),
+                use_real_percentiles,
             )
             for plot_name, fig in plots.items():
-                fig.write_image(f"{results_dir}/{model_name}_{plot_name}.pdf")
+                fig.savefig(
+                    results_dir / f"{model_name}_{plot_name}.pdf",
+                    bbox_inches="tight",
+                )
+                plt.close(fig)
 
     def save_results(
         self,

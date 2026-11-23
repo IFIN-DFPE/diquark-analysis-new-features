@@ -1,7 +1,9 @@
+from typing import Any
+
 import numpy as np
 from tensorflow.keras import layers, models, optimizers
+
 from diquark.models.base import BaseModel
-from typing import Any
 
 
 class NeuralNetworkModel(BaseModel):
@@ -34,15 +36,24 @@ class NeuralNetworkModel(BaseModel):
         self,
         X_train: np.ndarray,
         y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
+        X_val: np.ndarray | None,
+        y_val: np.ndarray | None,
+        sample_weight: np.ndarray | None = None,
+        val_sample_weight: np.ndarray | None = None,
     ):
+        validation_data = None
+        if X_val is not None and y_val is not None:
+            if val_sample_weight is not None:
+                validation_data = (X_val, y_val, val_sample_weight)
+            else:
+                validation_data = (X_val, y_val)
         history = self.model.fit(
             X_train,
             y_train,
             epochs=self.epochs,
             batch_size=self.batch_size,
-            validation_data=(X_val, y_val),
+            sample_weight=sample_weight,
+            validation_data=validation_data,
             verbose=1,
         )
         return history
