@@ -87,9 +87,7 @@ class Analysis:
         self.weight_alpha = float(raw_tw_cfg.get("alpha", 1.0))
         self.weight_balance_classes = bool(raw_tw_cfg.get("balance_classes", True))
         self.weight_signal_ratio = float(raw_tw_cfg.get("signal_weight_ratio", 1.0))
-        self.apply_weights_to_eval_set = bool(
-            raw_tw_cfg.get("apply_to_eval_set", True)
-        )
+        self.apply_weights_to_eval_set = bool(raw_tw_cfg.get("apply_to_eval_set", True))
         # Validate training_weights parameters early
         compute_training_weights(
             np.empty(0, dtype=str),
@@ -361,7 +359,10 @@ class Analysis:
                     X_val, y_val = prepared["X_test"], prepared["y_test"]
                     val_sample_weight = (
                         self._compute_training_weights(prepared["df_test"]["Truth"])
-                        if (self.apply_weights_to_eval_set and self.weight_mode != "none")
+                        if (
+                            self.apply_weights_to_eval_set
+                            and self.weight_mode != "none"
+                        )
                         else None
                     )
 
@@ -689,6 +690,10 @@ class Analysis:
                     feature_importance_dict = dict(
                         enumerate(feature_importances.tolist())
                     )
+                    feature_importance_dict = {
+                        f"feature_{i}": importance
+                        for i, importance in feature_importance_dict.items()
+                    }
 
                 self.results_manager.save_json(
                     feature_importance_dict,
